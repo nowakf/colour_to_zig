@@ -49,11 +49,27 @@ fn check_output(img: sod.struct_sod_img) !sod.struct_sod_img {
 }
 pub fn main() !void {
     const arguments = try parse_args();
-    const img = try check_output(sod.sod_img_load_from_file(arguments.o.ptr, 4));
-    const bin = try check_output(sod.sod_otsu_binarize_image(img));
-    sod_error(sod.sod_img_save_as_png(bin, "out.png")) catch |err| {
-        std.debug.print("error: {s}", .{@errorName(err)});
-    };
 
+    const img = try check_output(sod.sod_img_load_grayscale(arguments.o.ptr));
+    defer sod.sod_free_image(img);
+    const grey = try check_output(sod.sod_grayscale_image(img));
+    defer sod.sod_free_image(grey);
+    const canny = try check_output(sod.sod_canny_edge_image(grey, 0));
+    defer sod.sod_free_image(canny);
+
+    var cnt: c_int = -1;
+    const thresh = 10;
+
+    const pts = sod.sod_hough_lines_detect(canny, thresh, &cnt);
+    defer sod.sod_hough_lines_release(pts);
+
+    if (cnt < 0 or pts == null) {
+        std.debug.print("hough lines failed: {} pts detected\n", .{cnt});
+        return;
+    }
+    for (0..@intCast(@divFloor(cnt, 2))) |i| {
+        sod.sod_image_draw_line(grey, pts[i * 2], pts[i * 2 + 1], 255, 255, 255);
+    }
+    try sod_error(sod.sod_img_save_as_png(grey, "out.png"));
     return;
 }
