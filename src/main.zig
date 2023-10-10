@@ -2,6 +2,7 @@ const std = @import("std");
 const sod = @cImport({
     @cInclude("sod.h");
 });
+const os = std.os;
 
 const Cam = @import("v4l2capture.zig").Capturer;
 
@@ -10,7 +11,34 @@ const USAGE: []const u8 = "USAGE: prog in.png out_path.png";
 const Args = struct {
     v: []const u8 = "/dev/video0",
     o: []const u8 = "out.png",
+    w: u32 = 640,
+    h: u32 = 480,
 };
+
+fn finnicky_linux_stuff(cap: *Cam, alc: std.mem.Allocator) ![]u8 {
+    const epoll_fd = try os.epoll_create1(os.linux.EPOLL.CLOEXEC);
+    defer os.close(epoll_fd);
+
+    var cap_event = os.linux.epoll_event{
+        .events = os.linux.EPOLL.IN,
+        .data = os.linux.epoll_data{ .fd = cap.getFd() },
+    };
+
+    try os.epoll_ctl(epoll_fd, os.linux.EPOLL.CTL_ADD, cap_event.data.fd, &cap_event);
+
+    //signalfd?
+    const timeout = 5000;
+    var event: [5]os.linux.epoll_event = .{};
+    const ev_cnt = os.epoll_wait(epoll_fd, &event, timeout);
+    if (ev_cnt == 0) {
+        return error.Hmm;
+    }
+    if (event[0].data.fd == cap_event.data.fd) {
+        return try cap.capture(alc);
+    } else {
+        return error.Hmmmm;
+    }
+}
 
 fn parse_args() !Args {
     var args = std.process.args();
@@ -18,10 +46,18 @@ fn parse_args() !Args {
     while (args.next()) |arg| {
         inline for (std.meta.fields(@TypeOf(defaults))) |f| {
             if (arg.len == 2 and arg[1] == f.name[0]) {
-                @field(defaults, f.name) = args.next() orelse {
+                const val = args.next() orelse {
                     std.debug.print("flag -{s} requires a value\n ", .{f.name});
                     return error.ParseFailed;
                 };
+
+                const parsed = switch (f.type) {
+                    u32 => try std.fmt.parseInt(u32, val, 10),
+                    []const u8 => arg,
+                    else => std.debug.panic("unknown type"),
+                };
+
+                @field(defaults, f.name) = parsed;
             }
         }
     }
@@ -47,29 +83,30 @@ fn check_output(img: sod.struct_sod_img) !sod.struct_sod_img {
     }
     return img;
 }
+
 pub fn main() !void {
     const arguments = try parse_args();
+    const alc = std.heap.page_allocator;
 
-    const img = try check_output(sod.sod_img_load_grayscale(arguments.o.ptr));
-    defer sod.sod_free_image(img);
-    const grey = try check_output(sod.sod_grayscale_image(img));
-    defer sod.sod_free_image(grey);
-    const canny = try check_output(sod.sod_canny_edge_image(grey, 0));
+    var cam = try Cam.init(alc, arguments.v, arguments.w, arguments.h, 15, "YUYV");
+    defer cam.deinit();
+
+    try cam.start();
+    defer cam.stop();
+
+    const buf = try finnicky_linux_stuff(&cam, alc);
+    defer alc.free(buf);
+
+    var img = try check_output(sod.sod_make_image(@intCast(arguments.w), @intCast(arguments.h), 1));
+
+    for (0..(buf.len / 2)) |i| {
+        img.data[i] = @as(f32, @floatFromInt(buf[i * 2])) / 255;
+    }
+
+    const canny = try check_output(sod.sod_canny_edge_image(img, 0));
     defer sod.sod_free_image(canny);
 
-    var cnt: c_int = -1;
-    const thresh = 10;
+    try sod_error(sod.sod_img_save_as_png(canny, "out.png"));
 
-    const pts = sod.sod_hough_lines_detect(canny, thresh, &cnt);
-    defer sod.sod_hough_lines_release(pts);
-
-    if (cnt < 0 or pts == null) {
-        std.debug.print("hough lines failed: {} pts detected\n", .{cnt});
-        return;
-    }
-    for (0..@intCast(@divFloor(cnt, 2))) |i| {
-        sod.sod_image_draw_line(grey, pts[i * 2], pts[i * 2 + 1], 255, 255, 255);
-    }
-    try sod_error(sod.sod_img_save_as_png(grey, "out.png"));
     return;
 }
