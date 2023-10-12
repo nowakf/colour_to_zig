@@ -31,6 +31,15 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
+    if (exe.target.isLinux()) {
+        const zlibcamera = b.createModule(.{
+            .source_file = .{ .path = "libs/zlibcamera/lib.zig" },
+            .dependencies = &.{},
+        });
+
+        exe.addModule("zlibcamera", zlibcamera);
+    }
+
     exe.linkLibC();
 
     exe.addIncludePath(LazyPath.relative("sod"));
