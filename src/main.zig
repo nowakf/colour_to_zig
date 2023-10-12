@@ -35,7 +35,8 @@ const CamIter = if (@import("builtin").os.tag == .linux) struct {
     fn close() void {
     }
 } else struct {
-    fn new() !void {
+    fn  from_args(args: argparse.Args) !@This() {
+        _ = args;
         std.debug.print("camera only supported on linux: non-linux users must pipe images into stdin\n", .{});
         return error.NotImplimented; 
     }
