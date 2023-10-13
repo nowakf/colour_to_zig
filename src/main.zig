@@ -5,68 +5,100 @@ const argparse = @import("argparse.zig");
 const sod = @import("sod.zig");
 const File = std.fs.File;
 
+const YUYV_BYTES : u32 = 2;
+
 const StdinIter = struct {
     stdin : File,
-
     const Self = @This();
-    fn from_args(stdin: File, args: argparse.Args) !@This() {
-        _ = args;
-        return .{.stdin = stdin};
-    }
 
-    fn next(self: Self) ?[]const u8 {
-        _ = self;
-        return &.{};
+    fn next(self: Self, buf: []u8) ?[]const u8 {
+        const read = self.stdin.read(buf) catch |err| {
+            std.debug.print("err: .{s}\n", .{@errorName(err)});
+            return null;
+        };
+        if (read != buf.len) {
+            std.debug.print("read {}, should have read: {}\n",
+                .{read, buf.len});
+            return null;
+        }
+        return buf;
     }
-    fn close() void {
+    fn close(self: Self) void {
+        self.stdin.close();
     }
 };
-const CamIter = if (@import("builtin").os.tag == .linux) struct {
-    inner : u8 = undefined,
+const CamIter = struct {
     const Self = @This();
-    fn from_args(args: argparse.Args) !@This() {
-        _ = args;
-        return .{.inner = 0 };
-    }
-    fn next(self: Self) ?[]const u8 {
+
+    fn next(self: Self, buf: []u8) ?[]const u8 {
+        _ = buf;
         _ = self;
-        return &.{};
+        return null;
     }
-    fn close() void {
-    }
-} else struct {
-    fn  from_args(args: argparse.Args) !@This() {
-        _ = args;
-        std.debug.print("camera only supported on linux: non-linux users must pipe images into stdin\n", .{});
-        return error.NotImplimented; 
+
+    fn close(self: Self) void {
+        _ = self;
     }
 };
 
 
+//this is a unified interface over the various sources of image frames
+const FrameIter = struct {
+    buf: []u8,
+    w: u32,
+    h: u32,
+    iter: union(enum) {
+        stdin: StdinIter,
+        cam: CamIter,
+    },
 
-const FrameIter = union(enum) {
-    stdin: StdinIter,
-    cam: CamIter,
     fn next(self: @This()) ?[]const u8 {
-        return self.next();
+        return switch (self.iter) {
+            .stdin => |stdi| stdi.next(self.buf),
+            .cam => |cam| cam.next(self.buf),
+        };
     }
     fn close(self: @This()) void {
-        self.close();
-    }
+        switch (self.iter) {
+            .stdin => |stdi| stdi.close(),
+            .cam => |cam| cam.close(),
+        }
+}
 };
 
 
 pub fn main() !void {
     const stdin = std.io.getStdIn();
     const args = try argparse.parse_args();
-    const frames = if (stdin.isTty()) 
-        FrameIter{.stdin = try StdinIter.from_args(stdin, args) }
-    else 
-        FrameIter{.cam = try CamIter.from_args(args) };
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    const alc = gpa.allocator();
+    defer {
+        const status = gpa.deinit();
+        if (status == .leak) {
+            std.debug.print("leak detected! .{}", .{status});
+        }
+    }
+
+        
+
+
+    const frames = FrameIter {
+        .w = args.w,
+        .h = args.h,
+        .buf = try alc.alloc(u8, args.w * args.h * YUYV_BYTES),
+        .iter = if (stdin.isTty()) 
+                    .{.cam = CamIter{}}
+                 else 
+                    .{.stdin = StdinIter{.stdin = stdin}},
+    };
+    defer alc.free(frames.buf);
 
     while (frames.next()) |frame| {
+        std.debug.print("?", .{});
         _ = frame;
     }
+
     frames.close();
+
     return;
 }
