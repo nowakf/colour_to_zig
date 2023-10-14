@@ -1,104 +1,54 @@
-const t = @import("moore.zig");
+const moore = @import("moore.zig");
 
 const std = @import("std");
-const argparse = @import("argparse.zig");
+const iter = @import("iter.zig");
+const Stdin = iter.Stdin;
+const Cam = iter.Cam;
 const sod = @import("sod.zig");
 const File = std.fs.File;
-
-const YUYV_BYTES : u32 = 2;
-
-const StdinIter = struct {
-    stdin : File,
-    const Self = @This();
-
-    fn next(self: Self, buf: []u8) ?[]const u8 {
-        const read = self.stdin.read(buf) catch |err| {
-            std.debug.print("err: .{s}\n", .{@errorName(err)});
-            return null;
-        };
-        if (read != buf.len) {
-            std.debug.print("read {}, should have read: {}\n",
-                .{read, buf.len});
-            return null;
-        }
-        return buf;
-    }
-    fn close(self: Self) void {
-        self.stdin.close();
-    }
-};
-const CamIter = struct {
-    const Self = @This();
-
-    fn next(self: Self, buf: []u8) ?[]const u8 {
-        _ = buf;
-        _ = self;
-        return null;
-    }
-
-    fn close(self: Self) void {
-        _ = self;
-    }
-};
-
-
-//this is a unified interface over the various sources of image frames
-const FrameIter = struct {
-    buf: []u8,
-    w: u32,
-    h: u32,
-    iter: union(enum) {
-        stdin: StdinIter,
-        cam: CamIter,
-    },
-
-    fn next(self: @This()) ?[]const u8 {
-        return switch (self.iter) {
-            .stdin => |stdi| stdi.next(self.buf),
-            .cam => |cam| cam.next(self.buf),
-        };
-    }
-    fn close(self: @This()) void {
-        switch (self.iter) {
-            .stdin => |stdi| stdi.close(),
-            .cam => |cam| cam.close(),
-        }
-}
-};
-
+const ArgParser = @import("argparse.zig").ArgParser;
 
 pub fn main() !void {
+    const fields = struct {
+        video : []const u8 = "/dev/video0",
+        out : []const u8 = "out.png",
+        width : u32 = 640,
+        height : f32 = 48.0,
+    };
+
+    var args = std.process.args();
+    const parser = ArgParser(
+        fields,
+        "USAGE: if you provide an image or stream of images on stdin, that's fine. If you don't, it will try and access the camera.",
+    );
+    const out = try parser.parse(&args);
+    std.debug.print("{s}", .{parser.get_help()});
+
+    std.debug.print("{s}, {s}, {} {}\n", out);
+
     const stdin = std.io.getStdIn();
-    const args = try argparse.parse_args();
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const alc = gpa.allocator();
+    _ = alc;
     defer {
         const status = gpa.deinit();
         if (status == .leak) {
             std.debug.print("leak detected! .{}", .{status});
         }
     }
+    var cam = Cam(.{}){};
+    var stn = Stdin(.{}){};
 
-        
+    const frames = if (stdin.isTty()) 
+        cam.iter()
+     else 
+         stn.iter();
 
+    var buf = [_]u8{'t', 'e'};
 
-    const frames = FrameIter {
-        .w = args.w,
-        .h = args.h,
-        .buf = try alc.alloc(u8, args.w * args.h * YUYV_BYTES),
-        .iter = if (stdin.isTty()) 
-                    .{.cam = CamIter{}}
-                 else 
-                    .{.stdin = StdinIter{.stdin = stdin}},
-    };
-    defer alc.free(frames.buf);
-
-    while (frames.next()) |frame| {
+    while (frames.next(&buf) != null) {
         std.debug.print("?", .{});
-        _ = frame;
     }
-
-    frames.close();
 
     return;
 }

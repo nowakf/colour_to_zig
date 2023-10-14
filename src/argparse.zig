@@ -1,34 +1,55 @@
 const std = @import("std");
+const ArgIterator = std.process.ArgIterator;
 
-const USAGE: []const u8 = "USAGE: prog in.png out_path.png";
-
-pub const Args = struct {
-    v: []const u8 = "/dev/video0",
-    o: []const u8 = "out.png",
-    w: u32 = 640,
-    h: u32 = 480,
-};
-
-pub fn parse_args() !Args {
-    var args = std.process.args();
-    var defaults = Args{};
-    while (args.next()) |arg| {
-        inline for (std.meta.fields(@TypeOf(defaults))) |f| {
-            if (arg.len == 2 and arg[1] == f.name[0]) {
-                const val = args.next() orelse {
-                    std.debug.print("flag -{s} requires a value\n ", .{f.name});
-                    return error.ParseFailed;
+pub fn ArgParser(comptime T: type, comptime usage: []const u8) type {
+    return struct {
+        fn parse_opt(args: *ArgIterator, comptime out_type: type) !out_type {
+            const inf = @typeInfo(out_type);
+            if (inf == .Bool) {
+                return true;
+            } else {
+                const val = args.next() orelse error.NO_ARGUMENT;
+                return switch (inf) {
+                    .Array, .Pointer => val,
+                    .ComptimeInt => try std.fmt.parseInt(val),
+                    .ComptimeFloat => try std.fmt.parseFloat(val),
+                    else => std.debug.panic("unknown: {s}", .{@typeName(@TypeOf(inf))})
                 };
-
-                const parsed = switch (f.type) {
-                    u32 => try std.fmt.parseInt(u32, val, 10),
-                    []const u8 => arg,
-                    else => std.debug.panic("unknown type"),
-                };
-
-                @field(defaults, f.name) = parsed;
             }
         }
-    }
-    return defaults;
+        pub fn get_help() []const u8 {
+            const default = T{};
+            comptime var out_str : []const u8 = usage ++ "\n";
+            inline for (std.meta.fields(T)) |field| {
+                const longopt: []const u8 = "--" ++ field.name;
+                const shortopt: []const u8 = &.{'-', field.name[0]};
+                const defualt_value = switch (@typeInfo(field.type)) {
+                    .Array, .Pointer => std.fmt.comptimePrint("{s}", .{@field(default, field.name)}),
+                    else => std.fmt.comptimePrint("{any}", .{@field(default, field.name)}),
+                };
+                out_str = out_str
+                    ++ longopt ++ ", "
+                    ++ shortopt ++ ", "
+                    ++ "default value is: "
+                    ++ defualt_value ++ "\n";
+            }
+            return out_str;
+        }
+
+        pub fn parse(args: *ArgIterator) !T {
+            const fields = std.meta.fields(T);
+            var out = T{};
+            while (args.next()) |arg| {
+                inline for (fields) |field| {
+                    const longopt: [:0]const u8 = "--" ++ field.name;
+                    const shortopt: [:0]const u8 = &.{'-', field.name[0]};
+                    if (std.mem.eql(u8, arg, longopt) or std.mem.eql(u8, arg, shortopt)) {
+                        @field(out, field.name) = try ArgParser(T, usage).parse_opt(args, field.type);
+                        break;
+                    }
+                }
+            }
+            return out;
+        }
+    };
 }
