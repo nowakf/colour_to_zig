@@ -16,6 +16,7 @@ pub fn main() !void {
         height : f32 = 48.0,
     };
 
+
     var args = std.process.args();
     const parser = ArgParser(
         fields,
@@ -36,6 +37,8 @@ pub fn main() !void {
             std.debug.print("leak detected! .{}", .{status});
         }
     }
+
+
     var cam = Cam(.{}){};
     var stn = Stdin(.{}){};
 
