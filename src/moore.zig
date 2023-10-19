@@ -11,8 +11,10 @@ pub const Orientation = enum(u2) {
         pub fn three_facing(self: Self) [3][2]i2 {
             //this is a clockwise tour around the moore neighborhood
             //(0, 0) is at the top left.
-            const ring : [9][2]i2 = .{.{-1, -1}, .{0, -1}, .{1, -1}, .{1, 0},
-                .{1, 1}, .{0, 1}, .{-1, 1}, .{-1, 0}, .{-1, -1}};
+            const ring : [9][2]i2 = .{
+                .{-1, -1}, .{0, -1}, .{1, -1},
+                .{1, 0}, .{1, 1}, .{0, 1}, 
+                .{-1, 1}, .{-1, 0}, .{-1, -1}};
             comptime var windows = std.mem.window([2]i2, &ring, 3, 2);
             comptime var i = 0;
             comptime var facings = @as([4][3][2]i2, @bitCast([1]i2{-1} ** (4 * 3 * 2)));
@@ -23,13 +25,31 @@ pub const Orientation = enum(u2) {
         }
 };
 
+test "realign" {
+    const expect = std.testing.expect;
+    const alc = std.testing.allocator;
+    const buf = try alc.alloc(u8, 64);
+    @memset(buf, 0);
+    try expect(!alc.resize(buf, 65));
+    const buf1 = try alc.realloc(buf, 65);
+    alc.free(buf1);
+}
+
 pub const Bitmap = struct {
     w: u32, 
     h: u32,
-    bits: std.bit_set.DynamicBitSetUnmanaged,
+    bits: std.bit_set.DynamicBitSet,
     const Self = @This();
     fn at(self: Self, x: u32, y: u32) bool {
         return x < self.w and y < self.h and self.bits.isSet(y*self.w+x);
+    }
+    fn empty(alc: std.mem.Allocator, w: u32, h: u32) !Self {
+        return .{
+            .w=w, .h=h, .bits=try std.bit_set.DynamicBitSet.initEmpty(alc, w*h),
+        };
+    }
+    fn deinit(self: *Self) void {
+        self.bits.deinit();
     }
 
     fn from_img(alc: std.mem.Allocator, w: u32, h: u32, bytes: []u8) !Bitmap {
@@ -85,9 +105,7 @@ pub const Tracer = struct {
         for (three_facing, 0..) |delta, i| {
             const x = u32_i2_wrapping_sum(self.pos[0], delta[0]);
             const y = u32_i2_wrapping_sum(self.pos[1], delta[1]);
-            if (map.at(x, y)) {
-                bits.set(i);
-            }
+            bits.setValue(2-i, map.at(x, y));
         }
         const three : u3 = bits.mask;
         switch (three) {
@@ -116,8 +134,16 @@ pub const Tracer = struct {
         }
         return self.pos;
     }
-    pub fn trace(map: *const Bitmap, start: [2]u32, alc: std.mem.Allocator) [][2]u32 {
+    pub fn find_next_start(map: *const Bitmap, start: [2]u32) ?[2]u32 {
+        var it = map.bits.iterator(.{});
+        it.bit_offset = start[1] / map.w + start[0];
+        const next : u32 = @intCast(it.next().?);
+        return .{next / map.w, next % map.w};
+    }
+
+    pub fn trace(alc: std.mem.Allocator, map: *const Bitmap, start: [2]u32) !std.ArrayList([2]u32) {
         var contour = std.ArrayList([2]u32).init(alc);
+        try contour.append(start);
         var tracer = Tracer{
             .pos = start,
         };
@@ -135,19 +161,88 @@ pub const Tracer = struct {
                 last_loc = loc;
                 if (true) { //work out some chain-approx style simplification here
                     last_pushed = loc;
-                    contour.append(loc) catch |err| std.debug.panic("{any}", .{err});
+                    try contour.append(loc);
                 }
             }
             const pts = contour.items;
-            if (right_turns == 3 or std.mem.eql(u32, &pts[0], &pts[pts.len-1])) {
-                return pts;
+            if (right_turns == 3 or (right_turns == 0 and pts.len > 2 and std.mem.eql(u32, &pts[0], &pts[pts.len-1]))) {
+                _ = contour.pop();
+                return contour;
             }
         }
     }
 };
+
 test "tracer_trace" {
     const expect = std.testing.expect;
-    _ = expect;
-
+    const ContourSpec = struct {
+        const Self = @This();
+        map: Bitmap,
+        coords: std.ArrayList([2]u32),
+        fn from_str(alc: std.mem.Allocator, spec: []const u8) !Self {
+            var tokens = std.mem.tokenizeAny(u8, spec, " \n\r\t");
+            var vertexes : [64][2]u32 = .{.{0,0}} ** 64;
+            var bmap = try Bitmap.empty(alc, 8, 8);
+            var i : u32 = 0;
+            var cnt : u32 = 0;
+            while (tokens.peek() != null) : (i += 1) {
+                const tok = tokens.next().?;
+                if (tok[0] == '.') continue;
+                bmap.bits.set(i);
+                if (tok[0] == 'o') continue;
+                const val = try std.fmt.parseInt(u8, tok, 16);
+                vertexes[val] = .{i % 8, i / 8};
+                cnt += 1;
+            }
+            var managed = std.ArrayList([2]u32).init(alc);
+            try managed.appendSlice(vertexes[0..cnt]);
+            return Self {
+                .map=bmap,
+                .coords=managed,
+            };
+        }
+        fn deinit(self: *Self) void {
+            self.coords.deinit();
+            self.map.deinit();
+        }
+    };
+    const alc = std.testing.allocator;
+    var empty = try ContourSpec.from_str(alc,
+        \\.  .  .  .  .  .  .  . 
+        \\.  .  .  .  .  .  .  . 
+        \\.  .  .  .  .  .  .  . 
+        \\.  .  .  .  .  .  .  . 
+        \\.  .  .  .  .  .  .  . 
+        \\.  .  .  .  .  .  .  . 
+        \\.  .  .  .  .  .  .  . 
+        \\.  .  .  .  .  .  .  .
+    );
+    defer empty.deinit();
+    expect(empty.coords.items.len == 0) catch |err| {
+        std.debug.print("{} {any}", .{err, empty.coords.items});
+        return err;
+    };
+    var square = try ContourSpec.from_str(alc,
+        //0  1  2  3  4  5  6  7
+        \\.  .  .  .  .  .  .  . 
+        \\.  .  .  .  .  .  .  . 
+        \\.  .  0  1  2  3  .  . 
+        \\.  .  b  .  .  4  .  . 
+        \\.  .  a  .  .  5  .  . 
+        \\.  .  9  8  7  6  .  . 
+        \\.  .  .  .  .  .  .  . 
+        \\.  .  .  .  .  .  .  .
+    );
+    defer square.deinit();
+    const start = Tracer.find_next_start(&square.map, .{0, 0}).?;
+    try expect(std.mem.eql(u32, &start, &.{2, 2}));
+    const traced = try Tracer.trace(alc, &square.map, start);
+    defer traced.deinit();
+    expect(square.coords.items.len == traced.items.len) catch |err|  {
+        std.debug.print("{}: \n{any}\n ------ \n {any}\n", .{err, square.coords.items, traced.items});
+        std.debug.print("{b:64}\n", .{square.map.bits.unmanaged.masks[0]});
+        return err;
+    };
 }
+
 
