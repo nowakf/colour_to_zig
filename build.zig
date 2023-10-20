@@ -29,24 +29,19 @@ pub fn build(b: *std.Build) void {
 
     raylib.addTo(b, exe, target, optimize);
 
-    if (target.getOsTag() == .linux) {
-        // const source_files = [_][]const u8{
-        //     "vendor/sod/sod.c",
-        // };
-        // const flags = [_][]const u8{"-std=c99"};
+    exe.linkLibC();
 
-        // exe.addIncludePath(LazyPath.relative("vendor/sod"));
-        // exe.addCSourceFiles(&source_files, &flags);
-
-        // exe.linkLibC();
-    }
+    // const source_files = [_][]const u8{
+    //     "vendor/sod/sod.c",
+    // };
+    // const flags = [_][]const u8{"-std=c99"};
+    // exe.addIncludePath(LazyPath.relative("vendor/sod"));
+    // exe.addCSourceFiles(&source_files, &flags);
 
     if (target.getOsTag() == .macos) {
         exe.addIncludePath(LazyPath.relative("vendor/openpnp-capture/"));
         exe.addLibraryPath(LazyPath.relative("vendor/openpnp-capture/"));
         exe.linkSystemLibrary("openpnp-capture");
-
-        exe.linkLibC();
     }
 
     // This declares intent for the executable to be installed into the
