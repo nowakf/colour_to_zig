@@ -1,11 +1,7 @@
 const std = @import("std");
 const LazyPath = std.build.LazyPath;
 
-const source_files = [_][]const u8{
-    "sod/sod.c",
-};
-
-const flags = [_][]const u8{"-std=c99"};
+const raylib = @import("vendor//raylib//build.zig");
 
 // Although this function looks imperative, note that its job is to
 // declaratively construct a build graph that will be executed by an external
@@ -30,13 +26,20 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
-    
 
-    exe.linkLibC();
+    raylib.addTo(b, exe, target, optimize);
 
-    exe.addIncludePath(LazyPath.relative("sod"));
+    if (target.getOsTag() == .linux) {
+        // const source_files = [_][]const u8{
+        //     "vendor/sod/sod.c",
+        // };
+        // const flags = [_][]const u8{"-std=c99"};
 
-    exe.addCSourceFiles(&source_files, &flags);
+        // exe.addIncludePath(LazyPath.relative("vendor/sod"));
+        // exe.addCSourceFiles(&source_files, &flags);
+
+        // exe.linkLibC();
+    }
 
     // This declares intent for the executable to be installed into the
     // standard location when the user invokes the "install" step (the default
