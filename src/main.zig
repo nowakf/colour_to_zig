@@ -19,7 +19,7 @@ const WIDTH = 640;
 const HEIGHT = 480;
 
 pub fn main() !void {
-    const camera = switch (builtin.target.os.tag) {
+    var camera = switch (builtin.target.os.tag) {
         .linux => LinuxCamera{},
         .macos => MacOSCamera{},
         else => @compileError("Platform not supported"),
