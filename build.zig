@@ -74,6 +74,10 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
+    unit_tests.linkLibC();
+    unit_tests.addIncludePath(LazyPath.relative("sod"));
+    unit_tests.addCSourceFiles(.{.files = &c_source_files, .flags = &c_flags});
+
     const run_unit_tests = b.addRunArtifact(unit_tests);
 
     // Similar to creating the run step earlier, this exposes a `test` step to

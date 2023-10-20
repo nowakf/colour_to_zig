@@ -44,7 +44,7 @@ pub fn Cam(comptime args: Config) type {
             const Self = @This();
             pub fn iter(self: Self) FrameIter {
                 _ = self;
-                @panic("");
+                @panic("no camera available for this machine\n");
             }
         };
     }
