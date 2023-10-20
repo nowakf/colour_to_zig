@@ -4,3 +4,9 @@
 [submodule "libs/zlibcamera/libcamera-rs"]
 	path = libs/zlibcamera/libcamera-rs
 	url = https://github.com/lit-robotics/libcamera-rs
+[submodule "vendor/raylib"]
+	path = vendor/raylib
+	url = https://github.com/ryupold/raylib.zig
+[submodule "vendor/sod"]
+	path = vendor/sod
+	url = https://github.com/symisc/sod
