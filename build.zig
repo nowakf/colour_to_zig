@@ -1,11 +1,11 @@
 const std = @import("std");
 const LazyPath = std.build.LazyPath;
 
-const source_files = [_][]const u8{
+const c_source_files = [_][]const u8{
     "sod/sod.c",
 };
 
-const flags = [_][]const u8{"-std=c99"};
+const c_flags = [_][]const u8{"-std=c99"};
 
 // Although this function looks imperative, note that its job is to
 // declaratively construct a build graph that will be executed by an external
@@ -36,7 +36,7 @@ pub fn build(b: *std.Build) void {
 
     exe.addIncludePath(LazyPath.relative("sod"));
 
-    exe.addCSourceFiles(&source_files, &flags);
+    exe.addCSourceFiles(.{.files = &c_source_files, .flags = &c_flags});
 
     // This declares intent for the executable to be installed into the
     // standard location when the user invokes the "install" step (the default
