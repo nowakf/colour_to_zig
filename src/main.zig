@@ -1,6 +1,7 @@
-const moore = @import("moore.zig");
-
+const builtin = @import("builtin");
 const std = @import("std");
+
+const moore = @import("moore.zig");
 const iter = @import("iter.zig");
 const Stdin = iter.Stdin;
 const Cam = iter.Cam;
@@ -8,9 +9,21 @@ const sod = @import("sod.zig");
 const File = std.fs.File;
 const ArgParser = @import("argparse.zig").ArgParser;
 
+const Camera = @import("camera/Camera.zig").Camera;
+const LinuxCamera = @import("camera/linux/LinuxCamera.zig").LinuxCamera;
+const MacOSCamera = @import("camera/macos/MacOSCamera.zig").MacOSCamera;
+
 const raylib = @import("raylib");
 
 pub fn main() !void {
+    const camera = switch (builtin.target.os.tag) {
+        .linux => LinuxCamera{},
+        .macos => MacOSCamera{},
+        else => @compileError("Platform not supported"),
+    };
+
+    camera.init();
+
     raylib.InitWindow(800, 800, "window");
     raylib.SetTargetFPS(60);
 
@@ -24,6 +37,7 @@ pub fn main() !void {
         raylib.DrawFPS(10, 10);
 
         raylib.DrawText("hello world!", 100, 100, 20, raylib.YELLOW);
+        camera.getFrame();
     }
     // const fields = struct {
     //     video : []const u8 = "/dev/video0",
