@@ -41,6 +41,14 @@ pub fn build(b: *std.Build) void {
         // exe.linkLibC();
     }
 
+    if (target.getOsTag() == .macos) {
+        exe.addIncludePath(LazyPath.relative("vendor/openpnp-capture/"));
+        exe.addLibraryPath(LazyPath.relative("vendor/openpnp-capture/"));
+        exe.linkSystemLibrary("openpnp-capture");
+
+        exe.linkLibC();
+    }
+
     // This declares intent for the executable to be installed into the
     // standard location when the user invokes the "install" step (the default
     // step when running `zig build`).
