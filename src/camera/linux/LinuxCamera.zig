@@ -1,9 +1,9 @@
 const std = @import("std");
 
 pub const LinuxCamera = struct {
-    pub fn getFrame(self: LinuxCamera) void {
+    pub fn getFrame(self: LinuxCamera) [*:0]const u8 {
         _ = self;
-        std.debug.print("Get frame on Linux\n", .{});
+        return @embedFile("../test.raw");
     }
 
     pub fn init(self: LinuxCamera) void {

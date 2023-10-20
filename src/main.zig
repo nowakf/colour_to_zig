@@ -15,6 +15,9 @@ const MacOSCamera = @import("camera/macos/MacOSCamera.zig").MacOSCamera;
 
 const raylib = @import("raylib");
 
+const WIDTH = 640;
+const HEIGHT = 480;
+
 pub fn main() !void {
     const camera = switch (builtin.target.os.tag) {
         .linux => LinuxCamera{},
@@ -24,20 +27,33 @@ pub fn main() !void {
 
     camera.init();
 
-    raylib.InitWindow(800, 800, "window");
+    raylib.InitWindow(WIDTH, HEIGHT, "window");
     raylib.SetTargetFPS(60);
 
     defer raylib.CloseWindow();
+
+    var pixels = camera.getFrame();
+    var image = raylib.Image{
+        .data = @ptrCast(@constCast(pixels)),
+        .width = WIDTH,
+        .height = HEIGHT,
+        .mipmaps = 1,
+        .format = 4,
+    };
+    var texture = raylib.LoadTextureFromImage(image);
+    defer raylib.UnloadTexture(texture);
 
     while (!raylib.WindowShouldClose()) {
         raylib.BeginDrawing();
         defer raylib.EndDrawing();
 
         raylib.ClearBackground(raylib.BLACK);
-        raylib.DrawFPS(10, 10);
 
-        raylib.DrawText("hello world!", 100, 100, 20, raylib.YELLOW);
-        camera.getFrame();
+        pixels = camera.getFrame();
+        raylib.UpdateTexture(texture, pixels);
+        raylib.DrawTexture(texture, 0, 0, raylib.WHITE);
+
+        raylib.DrawFPS(10, 10);
     }
     // const fields = struct {
     //     video : []const u8 = "/dev/video0",

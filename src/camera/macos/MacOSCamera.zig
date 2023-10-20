@@ -1,9 +1,9 @@
 const std = @import("std");
 
 pub const MacOSCamera = struct {
-    pub fn getFrame(self: MacOSCamera) void {
+    pub fn getFrame(self: MacOSCamera) [*:0]const u8 {
         _ = self;
-        std.debug.print("Get frame on MacOS\n", .{});
+        return @embedFile("../test.raw");
     }
 
     pub fn init(self: MacOSCamera) void {
