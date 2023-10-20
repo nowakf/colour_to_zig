@@ -16,6 +16,9 @@ pub fn main() !void {
         height : f32 = 48.0,
     };
 
+    const img = sod.Img.make_empty(100, 100, 1);
+    _ = img;
+
 
     var args = std.process.args();
     const parser = ArgParser(

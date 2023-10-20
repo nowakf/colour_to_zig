@@ -7,31 +7,37 @@ const sod = @cImport({
 
 pub const SOD_VERSION = "1.1.8";
 
-pub const img = struct {
+pub const Img = struct {
     const Self = sod.struct_sod_img;
-    fn make_empty(w: c_int, h: c_int, c: c_int) Self {
-        return sod.sod_make_empty_image(w, h, c);
+    fn make_empty(w: c_int, h: c_int, c: c_int) ?Self {
+        const img = sod.sod_make_empty_image(w, h, c);
+        return if (sod.SOD_IS_EMPTY_IMG(img)) null else img;
     }
-    fn make(w: c_int, h: c_int, c: c_int) Self {
-        return sod.sod_make_image(w, h, c);
+    fn make(w: c_int, h: c_int, c: c_int) ?Self {
+        const img = sod.sod_make_image(w, h, c);
+        return if (sod.SOD_IS_EMPTY_IMG(img)) null else img;
     }
     fn grow(pImg: [*c]Self, w: c_int, h: c_int, c: c_int) c_int {
         return sod.sod_grow_image(pImg, w, h, c);
     }
-    fn make_random(w: c_int, h: c_int, c: c_int) Self {
-        return sod.sod_make_random_image(w, h, c);
+    fn make_random(w: c_int, h: c_int, c: c_int) ?Self {
+        const img = sod.sod_make_random_image(w, h, c);
+        return if (sod.SOD_IS_EMPTY_IMG(img)) null else img;
     }
-    fn copy(m: Self) Self {
-        return sod.sod_copy_image(m);
+    fn copy(m: Self) ?Self {
+        const img = sod.sod_copy_image(m);
+        return if (sod.SOD_IS_EMPTY_IMG(img)) null else img;
     }
     fn free(m: Self) void {
         return sod.sod_free_image(m);
     }
     fn load_from_file(zFile: [*c]const u8, nChannels: c_int) Self {
-        return sod.sod_img_load_from_file(zFile, nChannels);
+        const img = sod.sod_img_load_from_file(zFile, nChannels);
+        return if (sod.SOD_IS_EMPTY_IMG(img)) null else img;
     }
     fn load_from_mem(zBuf: [*c]const u8, buf_len: c_int, nChannels: c_int) Self {
-        return sod.sod_img_load_from_mem(zBuf, buf_len, nChannels);
+        const img = sod.sod_img_load_from_mem(zBuf, buf_len, nChannels);
+        return if (sod.SOD_IS_EMPTY_IMG(img)) null else img;
     }
     fn set_load_from_directory(zPath: [*c]const u8, apLoaded: [*c][*c]Self, pnLoaded: [*c]c_int, max_entries: c_int) c_int {
         return sod.sod_img_set_load_from_directory(zPath, apLoaded, pnLoaded, max_entries);
@@ -57,7 +63,7 @@ pub const img = struct {
     fn get_pixel(m: Self, x: c_int, y: c_int, c: c_int) f32 {
         return sod.sod_img_get_pixel(m, x, y, c);
     }
-    fn set_pixel(m: Self, x: c_int, y: c_int, c: c_int, val: f32) void {
+    fn set_pixel(m: *Self, x: c_int, y: c_int, c: c_int, val: f32) void {
         return sod.sod_img_set_pixel(m, x, y, c, val);
     }
     fn add_pixel(m: Self, x: c_int, y: c_int, c: c_int, val: f32) void {
@@ -213,7 +219,7 @@ pub const img = struct {
     fn draw_bbox_width(im: Self, bbox: sod.sod_box, width: c_int, r: f32, g: f32, b: f32) void {
         return sod.sod_image_draw_bbox_width(im, bbox, width, r, g, b);
     }
-    fn draw_line(im: Self, start: sod.sod_pts, end: sod.sod_pts, r: f32, g: f32, b: f32) void {
+    fn draw_line(im: Self, start: sod.sod_pts, end: sod_pts, r: f32, g: f32, b: f32) void {
         return sod.sod_image_draw_line(im, start, end, r, g, b);
     }
     fn to_blob(im: Self) [*c]u8 {
