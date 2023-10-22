@@ -17,6 +17,9 @@ const raylib = @import("raylib");
 
 const WIDTH = 640;
 const HEIGHT = 480;
+fn tes(comptime s: anytype) s {
+    return s;
+}
 
 pub fn main() !void {
     const camera = switch (builtin.target.os.tag) {
@@ -25,13 +28,7 @@ pub fn main() !void {
         else => @compileError("Platform not supported"),
     };
 
-<<<<<<< HEAD
-    const img = sod.Img.make_empty(100, 100, 1);
-    _ = img;
-
-=======
     camera.init();
->>>>>>> origin/cam-platform-handling
 
     raylib.InitWindow(WIDTH, HEIGHT, "window");
     raylib.SetTargetFPS(60);

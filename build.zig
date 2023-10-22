@@ -2,10 +2,10 @@ const std = @import("std");
 const LazyPath = std.build.LazyPath;
 
 const c_source_files = [_][]const u8{
-    "sod/sod.c",
+    "vendor/sod/sod.c",
 };
 const c_flags = [_][]const u8{"-std=c99"};
-const raylib = @import("vendor//raylib//build.zig");
+const raylib = @import("vendor/raylib/build.zig");
 
 // Although this function looks imperative, note that its job is to
 // declaratively construct a build graph that will be executed by an external
@@ -33,13 +33,10 @@ pub fn build(b: *std.Build) void {
 
     raylib.addTo(b, exe, target, optimize);
 
-    if (target.getOsTag() == .linux) {
-        // const source_files = [_][]const u8{
-        //     "vendor/sod/sod.c",
-        // };
-        // const flags = [_][]const u8{"-std=c99"};
-
+    exe.linkLibC();
+    exe.addIncludePath(LazyPath.relative("vendor/sod"));
     exe.addCSourceFiles(.{.files = &c_source_files, .flags = &c_flags});
+    exe.defineCMacro("SOD_DISABLE_IMG_READER", "");
 
     // This declares intent for the executable to be installed into the
     // standard location when the user invokes the "install" step (the default
@@ -78,7 +75,7 @@ pub fn build(b: *std.Build) void {
     });
 
     unit_tests.linkLibC();
-    unit_tests.addIncludePath(LazyPath.relative("sod"));
+    unit_tests.addIncludePath(LazyPath.relative("vendor/sod"));
     unit_tests.addCSourceFiles(.{.files = &c_source_files, .flags = &c_flags});
 
     const run_unit_tests = b.addRunArtifact(unit_tests);
