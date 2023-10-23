@@ -44,7 +44,6 @@ pub fn build(b: *std.Build) void {
     switch (t.os.tag) {
         .linux => {
             // openpnp_capture.defineCMacro("__PLATFORM__", "Linux 64");
-            opnpc.addIncludePath(.{ .path = "vendor/openpnp-capture/include" });
             opnpc.addCSourceFiles(.{
                 .files = &opnpc_linux_cpp_src_files,
             });
