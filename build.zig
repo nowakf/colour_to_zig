@@ -42,7 +42,13 @@ pub fn build(b: *std.Build) void {
     opnpc.installConfigHeader(opnpc__config_header, .{});
 
     switch (t.os.tag) {
-        .linux => {},
+        .linux => {
+            // openpnp_capture.defineCMacro("__PLATFORM__", "Linux 64");
+            opnpc.addIncludePath(.{ .path = "vendor/openpnp-capture/include" });
+            opnpc.addCSourceFiles(.{
+                .files = &opnpc_linux_cpp_src_files,
+            });
+        },
         .macos => {
             // openpnp_capture.defineCMacro("__PLATFORM__", "OSX 64");
             opnpc.addCSourceFiles(.{
@@ -92,6 +98,13 @@ const opnpc_common_cpp_src_files = [_][]const u8{
     "vendor/openpnp-capture/common/libmain.cpp",
     "vendor/openpnp-capture/common/logging.cpp",
     "vendor/openpnp-capture/common/stream.cpp",
+};
+
+const opnpc_linux_cpp_src_files = [_][]const u8{
+    "vendor/openpnp-capture/linux/mjpeghelper.cpp",
+    "vendor/openpnp-capture/linux/platformcontext.cpp",
+    "vendor/openpnp-capture/linux/platformstream.cpp",
+    "vendor/openpnp-capture/linux/yuvconverters.cpp",
 };
 
 const opnpc_objective_c_src_files = [_][]const u8{
