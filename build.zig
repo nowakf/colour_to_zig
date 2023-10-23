@@ -25,8 +25,21 @@ pub fn build(b: *std.Build) void {
 
     opnpc.linkLibC();
     opnpc.linkLibCpp();
+
     opnpc.addIncludePath(.{ .path = "vendor/openpnp-capture/include" });
     opnpc.addCSourceFiles(.{ .files = &opnpc_common_cpp_src_files });
+
+    const opnpc__config_header = b.addConfigHeader(.{
+        .style = .{
+            .cmake = .{
+                .path = "vendor/openpnp-capture/cmake/version.h.in",
+            },
+        },
+    }, .{
+        .GITVERSION = null,
+    });
+    opnpc.addConfigHeader(opnpc__config_header);
+    opnpc.installConfigHeader(opnpc__config_header, .{});
 
     switch (t.os.tag) {
         .linux => {},
