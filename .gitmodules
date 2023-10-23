@@ -10,3 +10,6 @@
 [submodule "vendor/sod"]
 	path = vendor/sod
 	url = https://github.com/symisc/sod
+[submodule "vendor/openpnp-capture"]
+	path = vendor/openpnp-capture
+	url = https://github.com/openpnp/openpnp-capture
