@@ -41,8 +41,9 @@ fn infer_return(comptime fun: type) type {
 }
 
 fn check_empty(img: sod.sod_img) !sod.sod_img {
-    return if (img.unnamed_0.data != null) img else
-        error.NO_IMAGE_RETURNED;
+    return img;
+    //return if (img.unnamed_0.data != null) img else
+    //    error.NO_IMAGE_RETURNED;
 }
 
 pub fn wrap(fun: anytype, args: anytype) !infer_return(@TypeOf(fun)) {
@@ -88,11 +89,11 @@ pub const Img = struct {
     }
     pub fn load_from_file(zFile: [*c]const u8, nChannels: c_int) !Self {
         const img = sod.sod_img_load_from_file(zFile, nChannels);
-        return .{.inner = check_empty(img)};
+        return .{.inner = try check_empty(img)};
     }
     pub fn load_from_mem(zBuf: [*c]const u8, buf_len: c_int, nChannels: c_int) !Self {
         const img = sod.sod_img_load_from_mem(zBuf, buf_len, nChannels);
-        return .{.inner = check_empty(img)};
+        return .{.inner = try check_empty(img)};
     }
     pub fn set_load_from_directory(zPath: [*c]const u8, apLoaded: [*c][*c]Self, pnLoaded: [*c]c_int, max_entries: c_int) !void {
         return wrap(sod.sod_img_set_load_from_directory, .{zPath, apLoaded, pnLoaded, max_entries});
@@ -264,7 +265,7 @@ pub const Img = struct {
         sod.sod_image_draw_line(im, start, end, r, g, b);
     }
     pub fn to_blob(im: Self) [*c]u8 {
-        return sod.sod_image_to_blob(im);
+        return sod.sod_image_to_blob(im.inner);
     }
 };
 

@@ -75,7 +75,7 @@ pub fn build(b: *std.Build) void {
     exe.linkLibC();
     exe.addIncludePath(LazyPath.relative("vendor/sod"));
     exe.addCSourceFiles(.{ .files = &sod_c_src_files, .flags = &sod_c_flags });
-    exe.defineCMacro("SOD_DISABLE_IMG_READER", "");
+    //otherwise you get duplicate symbol errors
 
     // RAYLIB
     raylib.addTo(b, exe, target, optimize);
@@ -113,7 +113,9 @@ const opnpc_objective_c_src_files = [_][]const u8{
     "vendor/openpnp-capture/mac/uvcctrl.mm",
 };
 
-const sod_c_flags = [_][]const u8{"-std=c99"};
+const sod_c_flags = [_][]const u8{
+    "-std=c99",
+};
 
 const sod_c_src_files = [_][]const u8{
     "vendor/sod/sod.c",

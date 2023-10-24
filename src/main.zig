@@ -15,9 +15,6 @@ const raylib = @import("raylib");
 
 const WIDTH = 640;
 const HEIGHT = 480;
-fn tes(comptime s: anytype) s {
-    return s;
-}
 
 pub fn main() !void {
      var gpa = std.heap.GeneralPurposeAllocator(.{}){};
