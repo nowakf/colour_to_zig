@@ -30,6 +30,7 @@ pub fn main() !void {
     const info = camera.info;
 
     var pixels = try alc.alloc(u8, info.width*info.height*3);
+    defer alc.free(pixels);
 
     raylib.InitWindow(WIDTH, HEIGHT, "window");
     raylib.SetTargetFPS(60);
@@ -38,10 +39,10 @@ pub fn main() !void {
 
     var image = raylib.Image{
         .data = @ptrCast(@constCast(pixels.ptr)),
-        .width = WIDTH,
-        .height = HEIGHT,
+        .width = @intCast(info.width),
+        .height = @intCast(info.height),
         .mipmaps = 1,
-        .format = 4,
+        .format = @intFromEnum(raylib.PixelFormat.PIXELFORMAT_UNCOMPRESSED_R8G8B8),
     };
     var texture = raylib.LoadTextureFromImage(image);
     defer raylib.UnloadTexture(texture);
@@ -59,47 +60,4 @@ pub fn main() !void {
 
         raylib.DrawFPS(10, 10);
     }
-    // const fields = struct {
-    //     video : []const u8 = "/dev/video0",
-    //     out : []const u8 = "out.png",
-    //     width : u32 = 640,
-    //     height : f32 = 48.0,
-    // };
-
-    // var args = std.process.args();
-    // const parser = ArgParser(
-    //     fields,
-    //     "USAGE: if you provide an image or stream of images on stdin, that's fine. If you don't, it will try and access the camera.",
-    // );
-    // const out = try parser.parse(&args);
-    // std.debug.print("{s}", .{parser.get_help()});
-
-    // std.debug.print("{s}, {s}, {} {}\n", out);
-
-    // const stdin = std.io.getStdIn();
-    // var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    // const alc = gpa.allocator();
-    // _ = alc;
-    // defer {
-    //     const status = gpa.deinit();
-    //     if (status == .leak) {
-    //         std.debug.print("leak detected! .{}", .{status});
-    //     }
-    // }
-
-    // var cam = Cam(.{}){};
-    // var stn = Stdin(.{}){};
-
-    // const frames = if (stdin.isTty())
-    //     cam.iter()
-    //  else
-    //      stn.iter();
-
-    // var buf = [_]u8{'t', 'e'};
-
-    // while (frames.next(&buf) != null) {
-    //     std.debug.print("?", .{});
-    // }
-
-    // return;
 }

@@ -1,38 +1,4 @@
 const std = @import("std");
-//unified interface to frame-grabbers:
-//my guess is this is very unsafe
-pub const FrameIter = struct {
-    ptr: *anyopaque,
-    vtable: struct {
-        next: *const fn (ctx: *anyopaque, buf: []u8) ?usize,
-    },
-    pub fn next(self: @This(), buf: []u8) ?usize {
-        return self.vtable.next(self.ptr, buf);
-    }
-};
-
-pub fn Stdin(comptime cfg: Config) type {
-    _ = cfg;
-    return struct {
-        w : u32 = 100,
-        h : u32 = 100,
-        const Self = @This(); 
-        pub fn next(self: *anyopaque, buf: []u8) ?usize {
-            _ = buf;
-            _ = self;
-            return null;
-        }
-        pub fn iter(self: *Self) FrameIter {
-            return .{
-                .ptr = self,
-                .vtable = .{
-                    .next = next,
-                },
-            };
-        }
-    };
-}
-
 const c = @cImport({
     @cInclude("openpnp-capture.h");
 });
