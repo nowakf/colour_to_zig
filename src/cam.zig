@@ -1,33 +1,106 @@
 const std = @import("std");
-
-const InvalidIter = struct {
-    const Self = @This();
-    fn new() Self {
-        @panic("");
-    }
-    fn next(_: Self, _: []u8) ?[]const u8 {
-        std.debug.print("", .{});
-        return null;
-    }
-    fn close(_: Self) void { }
-};
-
-const CamIter = struct {
-    //cam : @import("v4l2.zig").Camera = undefined,
-    const Self = @This();
-
-    fn new() Self {
-        return .{
-     //       .cam = null,
-        };
-    }
-    fn next(self: Self, buf: []u8) ?[]const u8 {
-        _ = buf;
-        _ = self;
-        return null;
-    }
-
-    fn close(self: Self) void {
-        _ = self;
+//unified interface to frame-grabbers:
+//my guess is this is very unsafe
+pub const FrameIter = struct {
+    ptr: *anyopaque,
+    vtable: struct {
+        next: *const fn (ctx: *anyopaque, buf: []u8) ?usize,
+    },
+    pub fn next(self: @This(), buf: []u8) ?usize {
+        return self.vtable.next(self.ptr, buf);
     }
 };
+
+pub fn Stdin(comptime cfg: Config) type {
+    _ = cfg;
+    return struct {
+        w : u32 = 100,
+        h : u32 = 100,
+        const Self = @This(); 
+        pub fn next(self: *anyopaque, buf: []u8) ?usize {
+            _ = buf;
+            _ = self;
+            return null;
+        }
+        pub fn iter(self: *Self) FrameIter {
+            return .{
+                .ptr = self,
+                .vtable = .{
+                    .next = next,
+                },
+            };
+        }
+    };
+}
+
+const c = @cImport({
+    @cInclude("openpnp-capture.h");
+});
+
+pub const Config = struct {
+    name: ?[]const u8 = null,
+};
+
+pub fn getCam(conf: Config) !Cam {
+    const ctx = c.Cap_createContext();
+    const cam_cnt = c.Cap_getDeviceCount(ctx);
+    if (cam_cnt == 0) {
+        return error.NO_CAMERA;
+    }
+    const dev_id = id: {
+        if (conf.name == null) {
+            break :id 0;
+        }
+        for (0..cam_cnt) |id| {
+            const name : [*:0]const u8 = c.Cap_getDeviceName(ctx, @intCast(id));
+            if (std.mem.eql(u8, std.mem.span(name), conf.name.?)) {
+                break :id @as(u32, @intCast(id));
+            }
+        }
+        break :id 0;
+    };
+    const fmt_cnt = c.Cap_getNumFormats(ctx, dev_id);
+    if (fmt_cnt == -1) {
+        return error.INVALID_FORMAT_CNT;
+    }
+    //just return the largest format available
+    var fmt = c.CapFormatInfo{};
+    var fmt_id : u32 = 0;
+    for (0..@intCast(fmt_cnt)) |id| {
+        var cur = c.CapFormatInfo{};
+        const res = c.Cap_getFormatInfo(ctx, dev_id, @intCast(id), &cur);
+        _ = res;
+        if (cur.width * cur.height > fmt.width * fmt.height) {
+            fmt = cur;
+            fmt_id = @intCast(id);
+        }
+    }
+
+    const stream_id = c.Cap_openStream(ctx, dev_id, fmt_id);
+    if (stream_id == -1) {
+        return error.OPEN_STREAM_FAILED;
+    }
+    return Cam {
+        .ctx = ctx,
+        .info = fmt,
+        .stream_id = stream_id,
+    };
+}
+
+const Cam = struct {
+    const Self = @This();
+    ctx: c.CapContext,
+    info: c.CapFormatInfo,
+    stream_id: i32,
+    pub fn getFrame(self: Self, buf: []u8) !void {
+        _ = c.Cap_captureFrame(self.ctx, self.stream_id, @ptrCast(buf.ptr), @intCast(buf.len));
+    }
+    pub fn deinit(self: Self) void {
+        //check errors here
+        _ = c.Cap_closeStream(self.ctx, self.stream_id);
+        _ = c.Cap_releaseContext(self.ctx);
+    }
+};
+
+
+
