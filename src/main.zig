@@ -2,9 +2,7 @@ const builtin = @import("builtin");
 const std = @import("std");
 
 const moore = @import("moore.zig");
-const iter = @import("iter.zig");
-const Stdin = iter.Stdin;
-const Cam = iter.Cam;
+const cam = @import("cam.zig");
 const sod = @import("sod.zig");
 const File = std.fs.File;
 const ArgParser = @import("argparse.zig").ArgParser;
@@ -22,22 +20,24 @@ fn tes(comptime s: anytype) s {
 }
 
 pub fn main() !void {
-    var camera = switch (builtin.target.os.tag) {
-        .linux => LinuxCamera{},
-        .macos => MacOSCamera{},
-        else => @compileError("Platform not supported"),
-    };
+     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+     const alc = gpa.allocator();
+     defer if (.leak == gpa.deinit()) {
+         std.debug.print("leak detected!\n", .{});
+     };
 
-    camera.init();
+    const camera = try cam.getCam(.{});
+    const info = camera.info;
+
+    var pixels = try alc.alloc(u8, info.width*info.height*3);
 
     raylib.InitWindow(WIDTH, HEIGHT, "window");
     raylib.SetTargetFPS(60);
 
     defer raylib.CloseWindow();
 
-    var pixels = camera.getFrame();
     var image = raylib.Image{
-        .data = @ptrCast(@constCast(pixels)),
+        .data = @ptrCast(@constCast(pixels.ptr)),
         .width = WIDTH,
         .height = HEIGHT,
         .mipmaps = 1,
@@ -52,8 +52,9 @@ pub fn main() !void {
 
         raylib.ClearBackground(raylib.BLACK);
 
-        pixels = camera.getFrame();
-        raylib.UpdateTexture(texture, pixels);
+        try camera.getFrame(pixels);
+
+        raylib.UpdateTexture(texture, pixels.ptr);
         raylib.DrawTexture(texture, 0, 0, raylib.WHITE);
 
         raylib.DrawFPS(10, 10);
