@@ -3,8 +3,14 @@ const c = @cImport({
     @cInclude("openpnp-capture.h");
 });
 
+//no checks whatsoever
+pub fn fourcc(code: [4]u8) u32 {
+    return std.mem.bytesAsValue(u32, code).*;
+}
+
 pub const Config = struct {
     name: ?[]const u8 = null,
+    fourcc: ?u32 = null,
 };
 
 pub fn getCam(conf: Config) !Cam {
@@ -29,6 +35,7 @@ pub fn getCam(conf: Config) !Cam {
     if (fmt_cnt == -1) {
         return error.INVALID_FORMAT_CNT;
     }
+
     //just return the largest format available
     var fmt = c.CapFormatInfo{};
     var fmt_id : u32 = 0;
@@ -36,7 +43,7 @@ pub fn getCam(conf: Config) !Cam {
         var cur = c.CapFormatInfo{};
         const res = c.Cap_getFormatInfo(ctx, dev_id, @intCast(id), &cur);
         _ = res;
-        if (cur.width * cur.height > fmt.width * fmt.height) {
+        if ((conf.fourcc == null or cur.fourcc == conf.fourcc) and cur.width * cur.height > fmt.width * fmt.height) {
             fmt = cur;
             fmt_id = @intCast(id);
         }
