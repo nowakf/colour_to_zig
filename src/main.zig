@@ -4,7 +4,6 @@ const std = @import("std");
 const moore = @import("moore.zig");
 const cam = @import("cam.zig");
 const img = @import("img.zig");
-const sod = @import("sod.zig");
 const File = std.fs.File;
 const ArgParser = @import("argparse.zig").ArgParser;
 
@@ -16,21 +15,19 @@ const WIDTH = 640;
 const HEIGHT = 480;
 
 pub fn main() !void {
-     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-     const alc = gpa.allocator();
-     defer if (.leak == gpa.deinit()) {
-         std.debug.print("leak detected!\n", .{});
-     };
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    const alc = gpa.allocator();
+    defer if (.leak == gpa.deinit()) {
+        std.debug.print("leak detected!\n", .{});
+    };
 
-    const camera = try cam.getCam(.{
-        .fourcc = std.mem.bytesAsValue(u32, "MJPG").*
-    });
+    const camera = try cam.getCam(.{ .fourcc = std.mem.bytesAsValue(u32, "MJPG").* });
     const info = camera.info;
 
-    var pixels = try alc.alloc(u8, info.width*info.height*3);
+    var pixels = try alc.alloc(u8, info.width * info.height * 3);
     defer alc.free(pixels);
 
-    var channels : [3][]u8 = .{
+    var channels: [3][]u8 = .{
         try alc.alloc(u8, pixels.len / 3),
     } ** 3;
     defer {
@@ -56,10 +53,10 @@ pub fn main() !void {
 
     while (!raylib.WindowShouldClose()) {
         raylib.BeginDrawing();
-        const h : f32 = @floatFromInt(raylib.GetScreenHeight());
-        const mouse : u8 = @intFromFloat(@as(f32, @floatFromInt(raylib.GetMouseY())) / h * 255);
-        const left : u8 = @intCast(mouse -% 10);
-        const right : u8 = @intCast(mouse +% 10);
+        const h: f32 = @floatFromInt(raylib.GetScreenHeight());
+        const mouse: u8 = @intFromFloat(@as(f32, @floatFromInt(raylib.GetMouseY())) / h * 255);
+        const left: u8 = @intCast(mouse -% 10);
+        const right: u8 = @intCast(mouse +% 10);
         defer raylib.EndDrawing();
         std.debug.print("{}\n", .{mouse});
 
@@ -68,7 +65,7 @@ pub fn main() !void {
         try camera.getFrame(pixels);
 
         img.pix_map(pixels, img.rgb2hsv);
-    
+
         try img.split_channels(3, channels, pixels);
 
         var hist = img.histogram(256, channels[0]);

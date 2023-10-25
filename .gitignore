@@ -13,5 +13,6 @@ docgen_tmp/
 *png
 *yuv
 *mpeg
+tags
 
 # End of https://www.toptal.com/developers/gitignore/api/zig
