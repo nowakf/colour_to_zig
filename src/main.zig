@@ -42,9 +42,14 @@ pub fn main() !void {
     }
 
     raylib.InitWindow(WIDTH, HEIGHT, "window");
+    defer raylib.CloseWindow();
     raylib.SetTargetFPS(60);
 
-    defer raylib.CloseWindow();
+    const shader = raylib.LoadShader(
+        "assets/shaders/vertex.glsl",
+        "assets/shaders/fragment.glsl",
+    );
+    defer raylib.UnloadShader(shader);
 
     var image = raylib.Image{
         .data = @ptrCast(@constCast(pixels.ptr)),
@@ -58,11 +63,12 @@ pub fn main() !void {
 
     while (!raylib.WindowShouldClose()) {
         raylib.BeginDrawing();
-        const h: f32 = @floatFromInt(raylib.GetScreenHeight());
-        const mouse: u8 = @intFromFloat(@max(@min(@as(f32, @floatFromInt(raylib.GetMouseY())) / h * 255, 255), 0));
-        const left: u8 = @intCast(mouse -% 10);
-        const right: u8 = @intCast(mouse +% 10);
         defer raylib.EndDrawing();
+
+        // const h: f32 = @floatFromInt(raylib.GetScreenHeight());
+        // const mouse: u8 = @intFromFloat(@max(@min(@as(f32, @floatFromInt(raylib.GetMouseY())) / h * 255, 255), 0));
+        // const left: u8 = @intCast(mouse -% 10);
+        // const right: u8 = @intCast(mouse +% 10);
 
         raylib.ClearBackground(raylib.BLACK);
 
@@ -70,20 +76,23 @@ pub fn main() !void {
 
         img.pix_map(pixels, img.rgb2hsv);
 
-        try img.split_channels(3, channels, pixels);
+        // try img.split_channels(3, channels, pixels);
 
-        var hist = img.histogram(256, channels[0]);
-        img.histogram_to_cumulative(&hist);
+        // var hist = img.histogram(256, channels[0]);
+        // img.histogram_to_cumulative(&hist);
 
-        for (channels[0], 0..) |v1, i| {
-            const v = img.histogram_equalization(16, 16, hist, v1);
-            channels[0][i] = img.clamp(v, left, right);
-        }
+        // for (channels[0], 0..) |v1, i| {
+        //     const v = img.histogram_equalization(16, 16, hist, v1);
+        //     channels[0][i] = img.clamp(v, left, right);
+        // }
 
-        try img.splat_channel(pixels, channels[0]);
+        // try img.splat_channel(pixels, channels[0]);
 
         raylib.UpdateTexture(texture, pixels.ptr);
+
+        // raylib.BeginShaderMode(shader);
         raylib.DrawTexture(texture, 0, 0, raylib.WHITE);
+        // raylib.EndShaderMode();
 
         raylib.DrawFPS(10, 10);
     }
