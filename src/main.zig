@@ -21,7 +21,12 @@ pub fn main() !void {
         std.debug.print("leak detected!\n", .{});
     };
 
-    const camera = try cam.getCam(.{ .fourcc = std.mem.bytesAsValue(u32, "MJPG").* });
+    const camera_config = if (builtin.os.tag == .linux)
+        .{ .fourcc = std.mem.bytesAsValue(u32, "MJPG").* }
+    else
+        .{};
+
+    const camera = try cam.getCam(camera_config);
     const info = camera.info;
 
     var pixels = try alc.alloc(u8, info.width * info.height * 3);
@@ -54,11 +59,10 @@ pub fn main() !void {
     while (!raylib.WindowShouldClose()) {
         raylib.BeginDrawing();
         const h: f32 = @floatFromInt(raylib.GetScreenHeight());
-        const mouse: u8 = @intFromFloat(@as(f32, @floatFromInt(raylib.GetMouseY())) / h * 255);
+        const mouse: u8 = @intFromFloat(@max(@min(@as(f32, @floatFromInt(raylib.GetMouseY())) / h * 255, 255), 0));
         const left: u8 = @intCast(mouse -% 10);
         const right: u8 = @intCast(mouse +% 10);
         defer raylib.EndDrawing();
-        std.debug.print("{}\n", .{mouse});
 
         raylib.ClearBackground(raylib.BLACK);
 
