@@ -26,9 +26,14 @@ pub fn main() !void {
     defer alc.free(pixels);
 
     raylib.InitWindow(WIDTH, HEIGHT, "window");
+    defer raylib.CloseWindow();
     raylib.SetTargetFPS(60);
 
-    defer raylib.CloseWindow();
+    const shader = raylib.LoadShader(
+        "assets/shaders/vertex.glsl",
+        "assets/shaders/fragment.glsl",
+    );
+    defer raylib.UnloadShader(shader);
 
     var image = raylib.Image{
         .data = @ptrCast(@constCast(pixels.ptr)),
@@ -43,13 +48,14 @@ pub fn main() !void {
     while (!raylib.WindowShouldClose()) {
         raylib.BeginDrawing();
         defer raylib.EndDrawing();
-
         raylib.ClearBackground(raylib.BLACK);
 
         try camera.getFrame(pixels);
-
         raylib.UpdateTexture(texture, pixels.ptr);
+
+        raylib.BeginShaderMode(shader);
         raylib.DrawTexture(texture, 0, 0, raylib.WHITE);
+        raylib.EndShaderMode();
 
         raylib.DrawFPS(10, 10);
     }
