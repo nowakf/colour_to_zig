@@ -11,10 +11,10 @@ const Camera = @import("camera/Camera.zig").Camera;
 
 const raylib = @import("raylib");
 
-pub fn main() !void {
-    var width: u32 = undefined;
-    var height: u32 = undefined;
+const WIDTH = 640;
+const HEIGHT = 480;
 
+pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const alc = gpa.allocator();
     defer if (.leak == gpa.deinit()) {
@@ -29,10 +29,7 @@ pub fn main() !void {
     const camera = try cam.getCam(camera_config);
     const info = camera.info;
 
-    width = info.width;
-    height = info.height;
-
-    var pixels = try alc.alloc(u8, width * height * 3);
+    var pixels = try alc.alloc(u8, info.width * info.height * 3);
     defer alc.free(pixels);
 
     var channels: [3][]u8 = .{
@@ -44,7 +41,7 @@ pub fn main() !void {
         }
     }
 
-    raylib.InitWindow(@intCast(width), @intCast(height), "window");
+    raylib.InitWindow(WIDTH, HEIGHT, "window");
     defer raylib.CloseWindow();
     raylib.SetTargetFPS(60);
 
@@ -56,8 +53,8 @@ pub fn main() !void {
 
     var image = raylib.Image{
         .data = @ptrCast(@constCast(pixels.ptr)),
-        .width = @intCast(width),
-        .height = @intCast(height),
+        .width = @intCast(info.width),
+        .height = @intCast(info.height),
         .mipmaps = 1,
         .format = @intFromEnum(raylib.PixelFormat.PIXELFORMAT_UNCOMPRESSED_R8G8B8),
     };
@@ -77,7 +74,7 @@ pub fn main() !void {
 
         try camera.getFrame(pixels);
 
-        // img.pix_map(pixels, img.rgb2hsv);
+        img.pix_map(pixels, img.rgb2hsv);
 
         // try img.split_channels(3, channels, pixels);
 
@@ -93,9 +90,9 @@ pub fn main() !void {
 
         raylib.UpdateTexture(texture, pixels.ptr);
 
-        raylib.BeginShaderMode(shader);
+        // raylib.BeginShaderMode(shader);
         raylib.DrawTexture(texture, 0, 0, raylib.WHITE);
-        raylib.EndShaderMode();
+        // raylib.EndShaderMode();
 
         raylib.DrawFPS(10, 10);
     }

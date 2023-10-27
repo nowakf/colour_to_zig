@@ -24,7 +24,7 @@ pub fn getCam(conf: Config) !Cam {
             break :id 0;
         }
         for (0..cam_cnt) |id| {
-            const name: [*:0]const u8 = c.Cap_getDeviceName(ctx, @intCast(id));
+            const name : [*:0]const u8 = c.Cap_getDeviceName(ctx, @intCast(id));
             if (std.mem.eql(u8, std.mem.span(name), conf.name.?)) {
                 break :id @as(u32, @intCast(id));
             }
@@ -38,7 +38,7 @@ pub fn getCam(conf: Config) !Cam {
 
     //just return the largest format available
     var fmt = c.CapFormatInfo{};
-    var fmt_id: u32 = 0;
+    var fmt_id : u32 = 0;
     for (0..@intCast(fmt_cnt)) |id| {
         var cur = c.CapFormatInfo{};
         const res = c.Cap_getFormatInfo(ctx, dev_id, @intCast(id), &cur);
@@ -53,7 +53,7 @@ pub fn getCam(conf: Config) !Cam {
     if (stream_id == -1) {
         return error.OPEN_STREAM_FAILED;
     }
-    return Cam{
+    return Cam {
         .ctx = ctx,
         .info = fmt,
         .stream_id = stream_id,
@@ -74,3 +74,6 @@ const Cam = struct {
         _ = c.Cap_releaseContext(self.ctx);
     }
 };
+
+
+
