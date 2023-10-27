@@ -19,7 +19,7 @@ const TextureStack = struct {
     head: u32,
 
     fn new(shader: raylib.Shader, initial_image: raylib.Image) !Self {
-        const textures = .{raylib.LoadTextureFromImage(initial_image)} ** stack_depth; //maybe dodgy
+        var textures : [stack_depth]raylib.Texture2D = undefined;
         var buf : [texture_prefix.len + 4:0]u8 = .{0} ** (texture_prefix.len + 4); 
         var uniforms : [stack_depth]i32 = undefined;
         for (0..stack_depth) |i| {
@@ -29,6 +29,7 @@ const TextureStack = struct {
                 std.debug.print("{s} uniform either undefined or unused in shader\n", .{uni_name});
             }
             uniforms[i] = unf;
+            textures[i] = raylib.LoadTextureFromImage(initial_image);
         }
         return .{
             .textures = textures, 
@@ -105,6 +106,7 @@ pub fn main() !void {
         stack.send(shader);
 
         raylib.BeginShaderMode(shader);
+        std.debug.print("{any}\n", .{stack.getHead()});
         raylib.DrawTexture(stack.getHead(), 0, 0, raylib.WHITE);
         raylib.EndShaderMode();
 
