@@ -9,9 +9,6 @@ const ArgParser = @import("argparse.zig").ArgParser;
 
 const raylib = @import("raylib");
 
-const WIDTH = 640;
-const HEIGHT = 480;
-
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const alc = gpa.allocator();
@@ -25,13 +22,13 @@ pub fn main() !void {
     var pixels = try alc.alloc(u8, info.width * info.height * 3);
     defer alc.free(pixels);
 
-    raylib.InitWindow(WIDTH, HEIGHT, "window");
+    raylib.InitWindow(info.width, info.height, "window");
     defer raylib.CloseWindow();
     raylib.SetTargetFPS(60);
 
     const shader = raylib.LoadShader(
         "assets/shaders/vertex.glsl",
-        "assets/shaders/fragment.glsl",
+        "assets/shaders/blur.glsl",
     );
     defer raylib.UnloadShader(shader);
 
@@ -51,6 +48,7 @@ pub fn main() !void {
         raylib.ClearBackground(raylib.BLACK);
 
         try camera.getFrame(pixels);
+
         raylib.UpdateTexture(texture, pixels.ptr);
 
         raylib.BeginShaderMode(shader);
