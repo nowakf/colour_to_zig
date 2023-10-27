@@ -2,12 +2,10 @@ const builtin = @import("builtin");
 const std = @import("std");
 
 const moore = @import("moore.zig");
-const cam = @import("cam.zig");
+const cam = @import("camera.zig");
 const img = @import("img.zig");
 const File = std.fs.File;
 const ArgParser = @import("argparse.zig").ArgParser;
-
-const Camera = @import("camera/Camera.zig").Camera;
 
 const raylib = @import("raylib");
 
@@ -21,20 +19,11 @@ pub fn main() !void {
         std.debug.print("leak detected!\n", .{});
     };
 
-    const camera = try cam.getCam(.{ .fourcc = std.mem.bytesAsValue(u32, "MJPG").* });
-    const info = camera.info;
+    const camera = try cam.getCam(.{});
+    const info = camera.dimensions();
 
     var pixels = try alc.alloc(u8, info.width * info.height * 3);
     defer alc.free(pixels);
-
-    var channels: [3][]u8 = .{
-        try alc.alloc(u8, pixels.len / 3),
-    } ** 3;
-    defer {
-        for (channels) |chan| {
-            alc.free(chan);
-        }
-    }
 
     raylib.InitWindow(WIDTH, HEIGHT, "window");
     raylib.SetTargetFPS(60);
@@ -53,30 +42,11 @@ pub fn main() !void {
 
     while (!raylib.WindowShouldClose()) {
         raylib.BeginDrawing();
-        const h: f32 = @floatFromInt(raylib.GetScreenHeight());
-        const mouse: u8 = @intFromFloat(@as(f32, @floatFromInt(raylib.GetMouseY())) / h * 255);
-        const left: u8 = @intCast(mouse -% 10);
-        const right: u8 = @intCast(mouse +% 10);
         defer raylib.EndDrawing();
-        std.debug.print("{}\n", .{mouse});
 
         raylib.ClearBackground(raylib.BLACK);
 
         try camera.getFrame(pixels);
-
-        img.pix_map(pixels, img.rgb2hsv);
-
-        try img.split_channels(3, channels, pixels);
-
-        var hist = img.histogram(256, channels[0]);
-        img.histogram_to_cumulative(&hist);
-
-        for (channels[0], 0..) |v1, i| {
-            const v = img.histogram_equalization(16, 16, hist, v1);
-            channels[0][i] = img.clamp(v, left, right);
-        }
-
-        try img.splat_channel(pixels, channels[0]);
 
         raylib.UpdateTexture(texture, pixels.ptr);
         raylib.DrawTexture(texture, 0, 0, raylib.WHITE);
