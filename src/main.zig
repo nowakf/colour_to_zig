@@ -1,64 +1,13 @@
 const builtin = @import("builtin");
 const std = @import("std");
+const File = std.fs.File;
+const raylib = @import("raylib");
 
 const moore = @import("moore.zig");
 const cam = @import("camera.zig");
 const img = @import("img.zig");
-const File = std.fs.File;
 const ArgParser = @import("argparse.zig").ArgParser;
-
-const raylib = @import("raylib");
-
-//raylib has no arraytextures :(
-const TextureStack = struct {
-    const Self = @This();
-    const texture_prefix = "tex";
-    const stack_depth = 16; //max textures allowed is 16
-    textures: [stack_depth]raylib.Texture2D,
-    uniforms: [stack_depth]i32,
-    head: u32,
-
-    fn new(shader: raylib.Shader, initial_image: raylib.Image) !Self {
-        var textures : [stack_depth]raylib.Texture2D = undefined;
-        var buf : [texture_prefix.len + 4:0]u8 = .{0} ** (texture_prefix.len + 4); 
-        var uniforms : [stack_depth]i32 = undefined;
-        for (0..stack_depth) |i| {
-            const uni_name : [:0]const u8 = try std.fmt.bufPrintZ(&buf, "{s}{}", .{texture_prefix, i});
-            const unf = raylib.GetShaderLocation(shader, uni_name.ptr);
-            if (unf < 0) {
-                std.debug.print("{s} uniform either undefined or unused in shader\n", .{uni_name});
-            }
-            uniforms[i] = unf;
-            textures[i] = raylib.LoadTextureFromImage(initial_image);
-        }
-        return .{
-            .textures = textures, 
-            .uniforms = uniforms,
-            .head = 0,
-        };
-    }
-    fn deinit(self: *Self) void {
-        for (self.textures) |tex| {
-            raylib.UnloadTexture(tex);
-        }
-    }
-    fn push(self: *Self, new_data: *const anyopaque) void {
-        raylib.UpdateTexture(self.textures[self.head], new_data);
-        self.head = (self.head + 1) % stack_depth;
-    }
-    fn getHead(self: Self) raylib.Texture2D {
-        return self.textures[self.head];
-    }
-    fn send(self: Self, shader: raylib.Shader) void{
-        for (self.uniforms, 0..) |loc, i| {
-            raylib.SetShaderValueTexture(
-                    shader,
-                    loc,
-                    self.textures[(self.head + i) % stack_depth],
-            );
-        }
-    }
-};
+const TextureStack = @import("texture_stack.zig");
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -106,7 +55,6 @@ pub fn main() !void {
         stack.send(shader);
 
         raylib.BeginShaderMode(shader);
-        std.debug.print("{any}\n", .{stack.getHead()});
         raylib.DrawTexture(stack.getHead(), 0, 0, raylib.WHITE);
         raylib.EndShaderMode();
 

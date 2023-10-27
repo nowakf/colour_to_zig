@@ -3,6 +3,8 @@
 in vec2 fragTexCoord;
 in vec4 fragColor;
 
+uniform sampler2D texture0;
+
 uniform sampler2D tex0;
 uniform sampler2D tex1;
 uniform sampler2D tex2;
@@ -17,7 +19,6 @@ uniform sampler2D tex10;
 uniform sampler2D tex11;
 uniform sampler2D tex12;
 uniform sampler2D tex13;
-uniform sampler2D tex14;
 uniform sampler2D tex15;
 uniform vec4 colDiffuse;
 
@@ -55,7 +56,9 @@ void main() {
 	vec3 hsv = rgb2hsv(col.rgb);
 	//finalColor = vec4(ceil(hsv.g*2.0-0.2));
 	finalColor = 
-	( texture(tex0, fragTexCoord) 
+	( 
+	+ texture(texture0, fragTexCoord) 
+	+ texture(tex0, fragTexCoord) 
 	+ texture(tex1, fragTexCoord) 
 	+ texture(tex2, fragTexCoord) 
 	+ texture(tex3, fragTexCoord) 
@@ -69,6 +72,5 @@ void main() {
 	+ texture(tex11, fragTexCoord) 
 	+ texture(tex12, fragTexCoord) 
 	+ texture(tex13, fragTexCoord) 
-	+ texture(tex14, fragTexCoord) 
-	+ texture(tex15, fragTexCoord)) / 15.0;
+	+ texture(tex15, fragTexCoord)) / 16.0;
 }
