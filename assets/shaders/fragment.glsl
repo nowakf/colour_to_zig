@@ -3,11 +3,22 @@
 in vec2 fragTexCoord;
 in vec4 fragColor;
 
-uniform sampler2D texture0;
 uniform sampler2D tex0;
 uniform sampler2D tex1;
 uniform sampler2D tex2;
 uniform sampler2D tex3;
+uniform sampler2D tex4;
+uniform sampler2D tex5;
+uniform sampler2D tex6;
+uniform sampler2D tex7;
+uniform sampler2D tex8;
+uniform sampler2D tex9;
+uniform sampler2D tex10;
+uniform sampler2D tex11;
+uniform sampler2D tex12;
+uniform sampler2D tex13;
+uniform sampler2D tex14;
+uniform sampler2D tex15;
 uniform vec4 colDiffuse;
 
 out vec4 finalColor;
@@ -30,7 +41,7 @@ vec4 gaussian_blur(vec2 uv) {
 	const float quality = 3.0;
 	const float size = 0.003;
 	vec2 radius = vec2(size);///_resolution.xy;
-	vec4 color = texture(texture0, uv);
+	vec4 color = texture(tex0, uv);
 	for (float th=0; th<TWO_PI; th+=TWO_PI/directions) {
 		for (float i=0; i<quality; i+=1.0/quality) {
 			color += texture(tex0, uv + vec2(cos(th), sin(th)) * size * i);
@@ -44,8 +55,20 @@ void main() {
 	vec3 hsv = rgb2hsv(col.rgb);
 	//finalColor = vec4(ceil(hsv.g*2.0-0.2));
 	finalColor = 
-	+ texture(tex0, fragTexCoord) * 1.0001
-	+ texture(tex1, fragTexCoord) * 0.0001
-	+ texture(tex2, fragTexCoord) * 0.0001
-	+ texture(tex3, fragTexCoord) * 0.0001;
+	( texture(tex0, fragTexCoord) 
+	+ texture(tex1, fragTexCoord) 
+	* texture(tex2, fragTexCoord) 
+	* texture(tex3, fragTexCoord) 
+	* texture(tex4, fragTexCoord) 
+	* texture(tex5, fragTexCoord) 
+	* texture(tex6, fragTexCoord)
+	* texture(tex7, fragTexCoord) 
+	* texture(tex8, fragTexCoord) 
+	* texture(tex9, fragTexCoord) 
+	* texture(tex10, fragTexCoord) 
+	* texture(tex11, fragTexCoord) 
+	* texture(tex12, fragTexCoord) 
+	* texture(tex13, fragTexCoord) 
+	* texture(tex14, fragTexCoord) 
+	* texture(tex15, fragTexCoord));
 }

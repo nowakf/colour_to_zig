@@ -13,13 +13,13 @@ const raylib = @import("raylib");
 const TextureStack = struct {
     const Self = @This();
     const texture_prefix = "tex";
-    const stack_depth = 4;
+    const stack_depth = 16; //max textures allowed is 16
     textures: [stack_depth]raylib.Texture2D,
     uniforms: [stack_depth]i32,
     head: u32,
 
     fn new(shader: raylib.Shader, initial_image: raylib.Image) !Self {
-        const textures = .{raylib.LoadTextureFromImage(initial_image)} ** 4; //maybe dodgy
+        const textures = .{raylib.LoadTextureFromImage(initial_image)} ** stack_depth; //maybe dodgy
         var buf : [texture_prefix.len + 4:0]u8 = .{0} ** (texture_prefix.len + 4); 
         var uniforms : [stack_depth]i32 = undefined;
         for (0..stack_depth) |i| {
