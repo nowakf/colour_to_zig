@@ -52,10 +52,10 @@ pub fn main() !void {
 
         stack.push(pixels.ptr);
 
+        raylib.BeginShaderMode(shader);
         stack.send(shader);
 
-        raylib.BeginShaderMode(shader);
-        raylib.DrawTexture(stack.getHead(), 0, 0, raylib.WHITE);
+        raylib.DrawTexture(stack.getHead(), 0, 0, raylib.RED);
         raylib.EndShaderMode();
 
         raylib.DrawFPS(10, 10);

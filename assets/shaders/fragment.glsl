@@ -24,6 +24,10 @@ uniform vec4 colDiffuse;
 
 out vec4 finalColor;
 
+const vec4 RED = vec4(0.0, 0.0, 0.0, 1.0);
+const vec4 BLUE = vec4(0.0, 0.0, 0.0, 1.0);
+const vec4 GREEN = vec4(0.0, 0.0, 0.0, 1.0);
+
 //from SO
 vec3 rgb2hsv(vec3 c)
 {
@@ -33,44 +37,57 @@ vec3 rgb2hsv(vec3 c)
 
     float d = q.x - min(q.w, q.y);
     float e = 1.0e-10;
-    return vec3(abs(q.z + (q.w - q.y) / (6.0 * d + e)), d / (q.x + 1.0), q.x);
+    return vec3(abs(q.z + (q.w - q.y) / (6.0 * d + e)), d / (q.x + e + 1.0), q.x);
+}
+
+float hsv(sampler2D s, vec2 uv) {
+	vec4 initial = texture(s, uv);
+	vec3 col = rgb2hsv(initial.rgb);
+	float n = 1.0;
+	return col.g *(n-fwidth(col.b))* (n-fwidth(col.r)) * (n-fwidth(col.g));
+}
+
+
+float sample(vec2 uv) {
+	return
+			(hsv(tex0, uv)  +
+			hsv(tex1, uv)  +
+			hsv(tex2, uv)  +
+			hsv(tex3, uv)  +
+			hsv(tex4, uv)  +
+			hsv(tex5, uv)  +
+			hsv(tex6, uv)  +
+			hsv(tex7, uv)  +
+			hsv(tex8, uv)  +
+			hsv(tex9, uv)  +
+			hsv(tex10, uv) +
+			hsv(tex11, uv) +
+			hsv(tex12, uv) +
+			hsv(tex13, uv) +
+			hsv(tex15, uv)) / 16.;// - 0.15);
 }
 //from shadertoy, with modifications and some errors introduced
+//this should be made into a noise-driven PHI thingy to reduce sample count
 const float TWO_PI = 6.28318530718;
-vec4 gaussian_blur(vec2 uv) {
-	const float directions = 16.0;
-	const float quality = 3.0;
-	const float size = 0.003;
+float gaussian_blur(vec2 uv) {
+	const float directions = 8.0;
+	const float quality = 1.5;
+	const float size = 0.01;
 	vec2 radius = vec2(size);///_resolution.xy;
-	vec4 color = texture(tex0, uv);
+	float color = 0.;
 	for (float th=0; th<TWO_PI; th+=TWO_PI/directions) {
 		for (float i=0; i<quality; i+=1.0/quality) {
-			color += texture(tex0, uv + vec2(cos(th), sin(th)) * size * i);
+			color += sample(uv + vec2(cos(th), sin(th)) * size * i);
 		}
 	}
 	return color / (directions * quality * quality);
 }
 
 void main() {
-	vec4 col = gaussian_blur(fragTexCoord);
-	vec3 hsv = rgb2hsv(col.rgb);
+	//vec4 col = gaussian_blur(fragTexCoord);
 	//finalColor = vec4(ceil(hsv.g*2.0-0.2));
-	finalColor = 
-	( 
-	+ texture(texture0, fragTexCoord) 
-	+ texture(tex0, fragTexCoord) 
-	+ texture(tex1, fragTexCoord) 
-	+ texture(tex2, fragTexCoord) 
-	+ texture(tex3, fragTexCoord) 
-	+ texture(tex4, fragTexCoord) 
-	+ texture(tex5, fragTexCoord) 
-	+ texture(tex6, fragTexCoord)
-	+ texture(tex7, fragTexCoord) 
-	+ texture(tex8, fragTexCoord) 
-	+ texture(tex9, fragTexCoord) 
-	+ texture(tex10, fragTexCoord) 
-	+ texture(tex11, fragTexCoord) 
-	+ texture(tex12, fragTexCoord) 
-	+ texture(tex13, fragTexCoord) 
-	+ texture(tex15, fragTexCoord)) / 16.0;
+
+	float col = sample(fragTexCoord);
+
+	finalColor = vec4(col*2.);
 }
