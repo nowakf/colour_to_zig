@@ -1,10 +1,11 @@
 const builtin = @import("builtin");
 const std = @import("std");
+const File = std.fs.File;
 
+const AudioProcessor = @import("audio.zig").AudioProcessor;
 const moore = @import("moore.zig");
 const cam = @import("camera.zig");
 const img = @import("img.zig");
-const File = std.fs.File;
 const ArgParser = @import("argparse.zig").ArgParser;
 
 const raylib = @import("raylib");
@@ -14,7 +15,7 @@ const HEIGHT = 480;
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    const alc = gpa.allocator();
+    const allocator = gpa.allocator();
     defer if (.leak == gpa.deinit()) {
         std.debug.print("leak detected!\n", .{});
     };
@@ -22,8 +23,8 @@ pub fn main() !void {
     const camera = try cam.getCam(.{});
     const info = camera.dimensions();
 
-    var pixels = try alc.alloc(u8, info.width * info.height * 3);
-    defer alc.free(pixels);
+    var pixels = try allocator.alloc(u8, info.width * info.height * 3);
+    defer allocator.free(pixels);
 
     raylib.InitWindow(WIDTH, HEIGHT, "window");
     defer raylib.CloseWindow();
@@ -45,7 +46,13 @@ pub fn main() !void {
     var texture = raylib.LoadTextureFromImage(image);
     defer raylib.UnloadTexture(texture);
 
+    var audio_processor = try AudioProcessor.new(allocator);
+    defer audio_processor.free(allocator);
+    audio_processor.play();
+
     while (!raylib.WindowShouldClose()) {
+        audio_processor.process();
+
         raylib.BeginDrawing();
         defer raylib.EndDrawing();
         raylib.ClearBackground(raylib.BLACK);
