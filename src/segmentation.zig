@@ -52,6 +52,12 @@ pub fn update(self: *Self) !void {
         self.head,
         self.buf.ptr
     );
+    raylib.SetShaderValue(
+        self.shader,
+        raylib.GetShaderLocation(self.shader, "head"),
+        &self.head,
+        raylib.ShaderUniformDataType.SHADER_UNIFORM_INT,
+    );
     self.head = (self.head + 1) % @as(u32, @intCast(self.texture.depth));
 
 }

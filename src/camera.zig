@@ -53,14 +53,14 @@ pub fn getCam(conf: Config) !Source {
         return error.INVALID_FORMAT_CNT;
     }
 
-    //just return the largest format available
+    //just return the largest fastest format available
     var fmt = c.CapFormatInfo{};
     var fmt_id : u32 = 0;
     for (0..@intCast(fmt_cnt)) |id| {
         var cur = c.CapFormatInfo{};
         const res = c.Cap_getFormatInfo(ctx, dev_id, @intCast(id), &cur);
         _ = res;
-        if ((conf.fourcc == null or cur.fourcc == conf.fourcc) and cur.width * cur.height > fmt.width * fmt.height) {
+        if ((conf.fourcc == null or cur.fourcc == conf.fourcc) and cur.width * cur.height * cur.fps > fmt.width * fmt.height * fmt.fps) {
             fmt = cur;
             fmt_id = @intCast(id);
         }

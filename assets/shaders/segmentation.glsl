@@ -2,6 +2,7 @@
 in vec2 fragTexCoord;
 
 uniform sampler3D texture0;
+uniform int head;
 
 out vec4 finalColor;
 
@@ -23,7 +24,7 @@ vec3 rgb2hsv(vec3 c)
 
     float d = q.x - min(q.w, q.y);
     float e = 1.0e-10;
-    return vec3(abs(q.z + (q.w - q.y) / (6.0 * d + e)), d / (q.x + e+0.1), q.x);
+    return vec3(abs(q.z + (q.w - q.y) / (6.0 * d + e)), d / (q.x + e), q.x);
 }
 
 vec4 golden_gaussian_3d(vec2 center) {
@@ -39,23 +40,38 @@ vec4 golden_gaussian_3d(vec2 center) {
 	return color / float(TH_SAMPLES);
 }
 
-vec4 closest_to_next_lod(vec2 center) {
+vec4 closest_to_lod(vec2 center, int reference_lod) {
 	float step = 1.0/float(TH_SAMPLES);
 	float mindist = 1.0;
-	vec4 out;
-	vec4 lod = textureLod(texture0, vec3(center, 0.0), 1);
+	vec4 o;
+	vec4 lod = textureLod(texture0, vec3(center, float(head)*step), reference_lod);
 	for (int i = 0; i<TH_SAMPLES; i++) {
 		vec4 tmp = texture(texture0, vec3(center, i*step));
 		if (distance(tmp, lod) < mindist) {
-			out = tmp;
+			o = tmp;
 			mindist = distance(tmp, lod);
 		}
 	}
-	return out;
+	return o;
 }
 
+vec4 closest_lod_weighted(vec2 center) {
+	float step = 1.0/float(TH_SAMPLES);
+	float sum = 0.0;
+	vec4 o = vec4(0.0);
+	vec4 lod = textureLod(texture0, vec3(center, float(head)*step), 1);
+	for (int i = 0; i<TH_SAMPLES; i++) {
+		vec4 tmp = texture(texture0, vec3(center, i*step));
+		float dist = distance(tmp, lod);
+		sum += dist;
+		o += tmp * dist;
+	}
+	return o / sum;
+}
 
 void main() {
 	//finalColor = golden_gaussian_3d(fragTexCoord);
-	finalColor = closest_to_next_lod(fragTexCoord);
+	vec4 denoised = closest_to_lod(fragTexCoord, 8);
+	//vec3 hsv = rgb2hsv(denoised.rgb);
+	finalColor = denoised;
 }

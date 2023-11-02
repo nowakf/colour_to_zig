@@ -37,7 +37,7 @@ pub fn new(opts: Texture3DOptions) Self {
     c.glTexParameteri(c.GL_TEXTURE_3D, c.GL_TEXTURE_WRAP_S, c.GL_REPEAT);
     c.glTexParameteri(c.GL_TEXTURE_3D, c.GL_TEXTURE_WRAP_T, c.GL_REPEAT);
     c.glTexParameteri(c.GL_TEXTURE_3D, c.GL_TEXTURE_WRAP_R, c.GL_REPEAT);
-    c.glTexParameteri(c.GL_TEXTURE_3D, c.GL_TEXTURE_MIN_FILTER, c.GL_LINEAR_MIPMAP_NEAREST);
+    c.glTexParameteri(c.GL_TEXTURE_3D, c.GL_TEXTURE_MIN_FILTER, c.GL_LINEAR_MIPMAP_LINEAR);
     c.glTexParameteri(c.GL_TEXTURE_3D, c.GL_TEXTURE_MAG_FILTER, c.GL_NEAREST);
     c.glTexImage3D(
         c.GL_TEXTURE_3D,
