@@ -85,6 +85,9 @@ pub const Source = union(enum) {
         info: c.CapFormatInfo,
         stream_id: i32,
         pub fn rawGetFrame(self: Inner, buf: []u8) !void {
+            //TODO: remove this
+            while(c.Cap_hasNewFrame(self.ctx, self.stream_id) == 0) {
+            }
             _ = c.Cap_captureFrame(self.ctx, self.stream_id, @ptrCast(buf.ptr), @intCast(buf.len));
         }
         pub fn rawDimensions(self: Inner) [2]u32 {

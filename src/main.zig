@@ -1,16 +1,12 @@
 const builtin = @import("builtin");
 const std = @import("std");
+const File = std.fs.File;
+const raylib = @import("raylib");
 
 const moore = @import("moore.zig");
 const cam = @import("camera.zig");
 const img = @import("img.zig");
-const File = std.fs.File;
 const ArgParser = @import("argparse.zig").ArgParser;
-
-const raylib = @import("raylib");
-
-const WIDTH = 640;
-const HEIGHT = 480;
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -25,7 +21,7 @@ pub fn main() !void {
     var pixels = try alc.alloc(u8, info.width * info.height * 3);
     defer alc.free(pixels);
 
-    raylib.InitWindow(WIDTH, HEIGHT, "window");
+    raylib.InitWindow(@intCast(info.width), @intCast(info.height), "window");
     defer raylib.CloseWindow();
     raylib.SetTargetFPS(60);
 
@@ -35,26 +31,15 @@ pub fn main() !void {
     );
     defer raylib.UnloadShader(shader);
 
-    var image = raylib.Image{
-        .data = @ptrCast(@constCast(pixels.ptr)),
-        .width = @intCast(info.width),
-        .height = @intCast(info.height),
-        .mipmaps = 1,
-        .format = @intFromEnum(raylib.PixelFormat.PIXELFORMAT_UNCOMPRESSED_R8G8B8),
-    };
-    var texture = raylib.LoadTextureFromImage(image);
-    defer raylib.UnloadTexture(texture);
-
     while (!raylib.WindowShouldClose()) {
         raylib.BeginDrawing();
         defer raylib.EndDrawing();
         raylib.ClearBackground(raylib.BLACK);
 
         try camera.getFrame(pixels);
-        raylib.UpdateTexture(texture, pixels.ptr);
 
         raylib.BeginShaderMode(shader);
-        raylib.DrawTexture(texture, 0, 0, raylib.WHITE);
+
         raylib.EndShaderMode();
 
         raylib.DrawFPS(10, 10);
