@@ -39,10 +39,23 @@ vec4 golden_gaussian_3d(vec2 center) {
 	return color / float(TH_SAMPLES);
 }
 
+vec4 closest_to_next_lod(vec2 center) {
+	float step = 1.0/float(TH_SAMPLES);
+	float mindist = 1.0;
+	vec4 out;
+	vec4 lod = textureLod(texture0, vec3(center, 0.0), 1);
+	for (int i = 0; i<TH_SAMPLES; i++) {
+		vec4 tmp = texture(texture0, vec3(center, i*step));
+		if (distance(tmp, lod) < mindist) {
+			out = tmp;
+			mindist = distance(tmp, lod);
+		}
+	}
+	return out;
+}
+
 
 void main() {
 	//finalColor = golden_gaussian_3d(fragTexCoord);
-	vec4 gauss = golden_gaussian_3d(fragTexCoord);
-	vec3 hsv = rgb2hsv(gauss.rgb);
-	finalColor = textureLod(texture0, vec3(fragTexCoord, 0.5), 2);
+	finalColor = closest_to_next_lod(fragTexCoord);
 }
