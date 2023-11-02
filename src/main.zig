@@ -7,7 +7,6 @@ const moore = @import("moore.zig");
 const cam = @import("camera.zig");
 const img = @import("img.zig");
 const ArgParser = @import("argparse.zig").ArgParser;
-const TextureStack = @import("texture_stack.zig");
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -32,17 +31,6 @@ pub fn main() !void {
     );
     defer raylib.UnloadShader(shader);
 
-    var image = raylib.Image{
-        .data = @ptrCast(@constCast(pixels.ptr)),
-        .width = @intCast(info.width),
-        .height = @intCast(info.height),
-        .mipmaps = 1,
-        .format = @intFromEnum(raylib.PixelFormat.PIXELFORMAT_UNCOMPRESSED_R8G8B8),
-    };
-
-    var stack = try TextureStack.new(shader, image);
-    defer stack.deinit();
-
     while (!raylib.WindowShouldClose()) {
         raylib.BeginDrawing();
         defer raylib.EndDrawing();
@@ -50,12 +38,8 @@ pub fn main() !void {
 
         try camera.getFrame(pixels);
 
-        stack.push(pixels.ptr);
-
         raylib.BeginShaderMode(shader);
-        stack.send(shader);
 
-        raylib.DrawTexture(stack.getHead(), 0, 0, raylib.RED);
         raylib.EndShaderMode();
 
         raylib.DrawFPS(10, 10);

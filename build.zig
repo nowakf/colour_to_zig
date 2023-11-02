@@ -14,6 +14,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
+
     // OPENPNP CAPTURE
     const opnpc = b.addStaticLibrary(.{
         .name = "zig-openpnp-capture",
@@ -43,14 +44,12 @@ pub fn build(b: *std.Build) void {
 
     switch (t.os.tag) {
         .linux => {
-            // openpnp_capture.defineCMacro("__PLATFORM__", "Linux 64");
             opnpc.linkSystemLibrary("turbojpeg");
             opnpc.addCSourceFiles(.{
                 .files = &opnpc_linux_cpp_src_files,
             });
         },
         .macos => {
-            // openpnp_capture.defineCMacro("__PLATFORM__", "OSX 64");
             opnpc.addCSourceFiles(.{
                 .files = &opnpc_objective_c_src_files,
                 // .flags = &.{"-fobjc-arc"},
@@ -70,14 +69,13 @@ pub fn build(b: *std.Build) void {
 
     exe.linkLibrary(opnpc);
     exe.addIncludePath(.{ .path = "vendor/openpnp-capture/include" });
-
-    // RAYLIB
     raylib.addTo(b, exe, target, optimize);
 
     b.installArtifact(exe);
 
     const run_cmd = b.addRunArtifact(exe);
     run_cmd.step.dependOn(b.getInstallStep());
+
 
     if (b.args) |args| {
         run_cmd.addArgs(args);
