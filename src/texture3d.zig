@@ -9,11 +9,11 @@ const Texture3DOptions = struct {
     width: i32,
     height: i32,
     depth: i32,
-    mipmaps: i32 = 1,
-    format: u32 = c.GL_RGB,
+    mipmaps: i32 = 1, //does nothing - not sure how this works
+    format: i32 = c.GL_RGB,
     clamp: u32 = c.GL_REPEAT,
     filter: u32 = c.GL_NEAREST,
-    data: ?[]const u8,
+    data: ?[]const u8 = null,
 };
 
 const Self = @This();
@@ -28,7 +28,8 @@ depth: i32,
 /// Mipmap levels, 1 by default
 mipmaps: i32,
 /// Data format (PixelFormat type)
-format: u32,
+format: i32,
+
 pub fn new(opts: Texture3DOptions) Self {
     var texture : c.GLuint = undefined;
     c.glGenTextures(1, &texture);
@@ -46,7 +47,7 @@ pub fn new(opts: Texture3DOptions) Self {
         opts.height,
         opts.depth,
         0,
-        opts.format,
+        @intCast(opts.format),
         c.GL_UNSIGNED_BYTE,
         if (opts.data) |dt| dt.ptr else null,
     );
@@ -70,7 +71,7 @@ pub fn send(self: Self, shader: u32, uniform: []const u8) void {
     raylib.rlCheckErrors();
 }
 
-pub fn set_frame(self: Self, frame: i32, data: [*]const u8) void {
+pub fn set_frame(self: Self, frame: u32, data: [*]const u8) void {
     c.glActiveTexture(c.GL_TEXTURE0);
     c.glBindTexture(c.GL_TEXTURE_3D, self.id);
     c.glTexSubImage3D(
@@ -78,11 +79,11 @@ pub fn set_frame(self: Self, frame: i32, data: [*]const u8) void {
         0,  //mipmaps: not sure how this program works
         0,
         0,
-        frame,
+        @intCast(frame),
         self.width,
         self.height,
         1,              //a frame has a z-depth of 1
-        self.format,
+        @intCast(self.format),
         c.GL_UNSIGNED_BYTE,
         data 
     );

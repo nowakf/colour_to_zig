@@ -86,8 +86,6 @@ pub const Source = union(enum) {
         stream_id: i32,
         pub fn rawGetFrame(self: Inner, buf: []u8) !void {
             //TODO: remove this
-            while(c.Cap_hasNewFrame(self.ctx, self.stream_id) == 0) {
-            }
             _ = c.Cap_captureFrame(self.ctx, self.stream_id, @ptrCast(buf.ptr), @intCast(buf.len));
         }
         pub fn rawDimensions(self: Inner) [2]u32 {
@@ -111,7 +109,7 @@ pub const Source = union(enum) {
         pub fn rawGetFrame(self: Inner, buf: []u8) !void {
             @memcpy(buf, self.img);
         }
-        pub fn rawDeinit(self: Inner) !void {
+        pub fn rawDeinit(self: Inner) void {
             self.allocator.free(self.img);
         }
 
