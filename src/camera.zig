@@ -1,6 +1,7 @@
 const std = @import("std");
 const ppm = @import("ppm.zig");
 const c = @cImport({
+
     @cInclude("openpnp-capture.h");
 });
 
@@ -29,6 +30,7 @@ pub fn getPPM(alc: std.mem.Allocator, fname: []const u8) !Source {
 }
 
 pub fn getCam(conf: Config) !Source {
+    c.Cap_setLogLevel(8);
     const ctx = c.Cap_createContext();
     const cam_cnt = c.Cap_getDeviceCount(ctx);
     if (cam_cnt == 0) {
@@ -91,6 +93,10 @@ pub const Source = union(enum) {
         pub fn rawDimensions(self: Inner) [2]u32 {
             return .{self.info.width, self.info.height};
         }
+        pub fn rawIsReady(self: Inner) bool {
+            return c.Cap_isOpenStream(self.ctx, self.stream_id) == 1 and
+            c.Cap_hasNewFrame(self.ctx, self.stream_id) == 1;
+        }
         pub fn rawDeinit(self: Inner) void {
             //check errors here
             _ = c.Cap_closeStream(self.ctx, self.stream_id);
@@ -118,6 +124,12 @@ pub const Source = union(enum) {
         switch (self) {
             inline else => |inner| try inner.rawGetFrame(buf),
         }
+    }
+    pub fn isReady(self: Self) bool {
+        return switch (self) {
+            .Cam => |inner| inner.rawIsReady(),
+            else => true,
+        };
     }
     pub fn dimensions(self: Self) struct {width:u32, height:u32} {
         const dims = switch (self) {

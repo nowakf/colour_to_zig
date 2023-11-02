@@ -9,7 +9,7 @@ const Texture3DOptions = struct {
     width: i32,
     height: i32,
     depth: i32,
-    mipmaps: i32 = 1, //does nothing - not sure how this works
+    mipmaps: i32 = 1, 
     format: i32 = c.GL_RGB,
     clamp: u32 = c.GL_REPEAT,
     filter: u32 = c.GL_NEAREST,
@@ -37,7 +37,7 @@ pub fn new(opts: Texture3DOptions) Self {
     c.glTexParameteri(c.GL_TEXTURE_3D, c.GL_TEXTURE_WRAP_S, c.GL_REPEAT);
     c.glTexParameteri(c.GL_TEXTURE_3D, c.GL_TEXTURE_WRAP_T, c.GL_REPEAT);
     c.glTexParameteri(c.GL_TEXTURE_3D, c.GL_TEXTURE_WRAP_R, c.GL_REPEAT);
-    c.glTexParameteri(c.GL_TEXTURE_3D, c.GL_TEXTURE_MIN_FILTER, c.GL_NEAREST);
+    c.glTexParameteri(c.GL_TEXTURE_3D, c.GL_TEXTURE_MIN_FILTER, c.GL_LINEAR_MIPMAP_NEAREST);
     c.glTexParameteri(c.GL_TEXTURE_3D, c.GL_TEXTURE_MAG_FILTER, c.GL_NEAREST);
     c.glTexImage3D(
         c.GL_TEXTURE_3D,
@@ -74,9 +74,10 @@ pub fn send(self: Self, shader: u32, uniform: []const u8) void {
 pub fn set_frame(self: Self, frame: u32, data: [*]const u8) void {
     c.glActiveTexture(c.GL_TEXTURE0);
     c.glBindTexture(c.GL_TEXTURE_3D, self.id);
+    c.glGenerateMipmap(c.GL_TEXTURE_3D);
     c.glTexSubImage3D(
         c.GL_TEXTURE_3D, 
-        0,  //mipmaps: not sure how this program works
+        0,
         0,
         0,
         @intCast(frame),

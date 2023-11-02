@@ -19,7 +19,7 @@ pub fn main() !void {
     defer raylib.CloseWindow();
     raylib.SetTargetFPS(60);
 
-    var segger = try segmentation.new(alc, 16);
+    var segger = try segmentation.new(alc, 8);
     defer segger.deinit();
 
     while (!raylib.WindowShouldClose()) {

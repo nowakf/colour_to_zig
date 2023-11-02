@@ -28,6 +28,7 @@ pub fn new(alc: std.mem.Allocator, depth: u32) !Self {
         .depth = @intCast(depth),
     });
     tex3d.send(segmentation_shader.id, "texture0");
+    try camera.getFrame(buf); //to work around undefined behaviour in openpnp
     return .{
         .dummy = raylib.Texture2D {
             .id = raylib.rlGetTextureIdDefault(),
@@ -45,6 +46,7 @@ pub fn new(alc: std.mem.Allocator, depth: u32) !Self {
 }
 
 pub fn update(self: *Self) !void {
+    if (!self.cam.isReady()) return;
     try self.cam.getFrame(self.buf);
     self.texture.set_frame(
         self.head,
