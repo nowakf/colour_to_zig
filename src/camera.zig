@@ -13,6 +13,7 @@ pub fn fourcc(code: [4]u8) u32 {
 pub const Config = struct {
     name: ?[]const u8 = null,
     fourcc: ?u32 = null,
+    props: []const struct{Property, f32} = &.{},
 };
 
 pub fn getPPM(alc: std.mem.Allocator, fname: []const u8) !Source {
@@ -27,6 +28,55 @@ pub fn getPPM(alc: std.mem.Allocator, fname: []const u8) !Source {
             .allocator = alc,
         }
     };
+}
+
+pub const Property = enum(u32) {
+    EXPOSURE      = c.CAPPROPID_EXPOSURE,
+    FOCUS         = c.CAPPROPID_FOCUS,
+    ZOOM          = c.CAPPROPID_ZOOM,
+    WHITEBALANCE  = c.CAPPROPID_WHITEBALANCE,
+    GAIN          = c.CAPPROPID_GAIN,
+    BRIGHTNESS    = c.CAPPROPID_BRIGHTNESS,
+    CONTRAST      = c.CAPPROPID_CONTRAST,
+    SATURATION    = c.CAPPROPID_SATURATION,
+    GAMMA         = c.CAPPROPID_GAMMA,
+    HUE           = c.CAPPROPID_HUE,
+    SHARPNESS     = c.CAPPROPID_SHARPNESS,
+    BACKLIGHTCOMP = c.CAPPROPID_BACKLIGHTCOMP,
+    POWERLINEFREQ = c.CAPPROPID_POWERLINEFREQ,
+};
+
+
+
+fn cam_error(err: u32) !void {
+    return switch (err) {
+        c.CAPRESULT_OK,                   => return,
+        c.CAPRESULT_ERR,                  => error.ERR,
+        c.CAPRESULT_DEVICENOTFOUND,       => error.DEVICENOTFOUND,
+        c.CAPRESULT_FORMATNOTSUPPORTED,   => error.FORMATNOTSUPPORTED,
+        c.CAPRESULT_PROPERTYNOTSUPPORTED, => error.PROPERTYNOTSUPPORTED,
+        else                              => std.debug.panic("unknown error value from camera: {}\n", .{err}),
+    };
+}
+
+//value is in the range of 0-1, null returns the property to automatic
+fn set_prop(ctx: c.CapContext, str: c.CapStream, prop: Property, value: ?f32) !void {
+    if (value) |val| {
+        if (val > 1.0) {
+            std.debug.print("values for properties must be in the range of 0-1\n", .{});
+            return error.INVALID_SETTING;
+        }
+        try cam_error(c.Cap_setAutoProperty(ctx, str, @intFromEnum(prop), 0));
+        var min : i32 = undefined;
+        var max : i32 = undefined;
+        var default : i32 = undefined;
+        try cam_error(c.Cap_getPropertyLimits(ctx, str, @intFromEnum(prop), &min, &max, &default));
+        const ival : i32 = @intFromFloat(val * @as(f32, @floatFromInt(max - min)));
+        try cam_error(c.Cap_setProperty(ctx, str, @intFromEnum(prop), ival));
+        std.debug.print("set prop {any} with default of {} to {}\n", .{prop, default, ival});
+    } else {
+        return cam_error(c.Cap_setAutoProperty(ctx, str, @intFromEnum(prop), 1));
+    }
 }
 
 pub fn getCam(conf: Config) !Source {
@@ -53,27 +103,45 @@ pub fn getCam(conf: Config) !Source {
         return error.INVALID_FORMAT_CNT;
     }
 
-    //just return the largest fastest format available
-    var fmt = c.CapFormatInfo{};
-    var fmt_id : u32 = 0;
+    //fallback returns the largest fastest format available
+    const Fmt = struct{fmt: c.CapFormatInfo, id: u32};
+    var matching : ?Fmt = null;
+    var fallback : Fmt = .{.fmt=c.CapFormatInfo{}, .id=0};
     for (0..@intCast(fmt_cnt)) |id| {
         var cur = c.CapFormatInfo{};
-        const res = c.Cap_getFormatInfo(ctx, dev_id, @intCast(id), &cur);
-        _ = res;
-        if ((conf.fourcc == null or cur.fourcc == conf.fourcc) and cur.width * cur.height * cur.fps > fmt.width * fmt.height * fmt.fps) {
-            fmt = cur;
-            fmt_id = @intCast(id);
+        try cam_error(c.Cap_getFormatInfo(ctx, dev_id, @intCast(id), &cur));
+        if (cur.width * cur.height * cur.fps > fallback.fmt.width * fallback.fmt.height * fallback.fmt.fps) {
+            fallback = .{
+                .fmt=cur,
+                .id=@intCast(id)
+            };
+            if (cur.fourcc == conf.fourcc) {
+                matching = .{
+                    .fmt=cur,
+                    .id=@intCast(id)
+                };
+            }
         }
     }
+    const fmt = if (matching) |m| m else fallback;
 
-    const stream_id = c.Cap_openStream(ctx, dev_id, fmt_id);
+    const stream_id = c.Cap_openStream(ctx, dev_id, fmt.id);
     if (stream_id == -1) {
         return error.OPEN_STREAM_FAILED;
+    }
+    for (conf.props) |prop| {
+        set_prop(ctx, stream_id, prop[0], prop[1]) catch |err| {
+            if (err == error.PROPERTYNOTSUPPORTED) {
+                std.debug.print("property: {any} not supported\n", .{prop[0]});
+            } else {
+                return err;
+            }
+        };
     }
     return Source {
         .Cam = .{
             .ctx = ctx,
-            .info = fmt,
+            .info = fmt.fmt,
             .stream_id = stream_id,
         }
     };
@@ -87,20 +155,15 @@ pub const Source = union(enum) {
         info: c.CapFormatInfo,
         stream_id: i32,
         pub fn rawGetFrame(self: Inner, buf: []u8) !void {
-            //TODO: remove this
-            _ = c.Cap_captureFrame(self.ctx, self.stream_id, @ptrCast(buf.ptr), @intCast(buf.len));
+            try cam_error(c.Cap_captureFrame(self.ctx, self.stream_id, @ptrCast(buf.ptr), @intCast(buf.len)));
         }
         pub fn rawDimensions(self: Inner) [2]u32 {
             return .{self.info.width, self.info.height};
         }
-        pub fn rawIsReady(self: Inner) bool {
-            return c.Cap_isOpenStream(self.ctx, self.stream_id) == 1 and
-            c.Cap_hasNewFrame(self.ctx, self.stream_id) == 1;
-        }
-        pub fn rawDeinit(self: Inner) void {
+        pub fn rawDeinit(self: Inner) !void {
             //check errors here
-            _ = c.Cap_closeStream(self.ctx, self.stream_id);
-            _ = c.Cap_releaseContext(self.ctx);
+            try cam_error(c.Cap_closeStream(self.ctx, self.stream_id));
+            try cam_error(c.Cap_releaseContext(self.ctx));
         }
     },
     PPM : struct {
@@ -115,7 +178,7 @@ pub const Source = union(enum) {
         pub fn rawGetFrame(self: Inner, buf: []u8) !void {
             @memcpy(buf, self.img);
         }
-        pub fn rawDeinit(self: Inner) void {
+        pub fn rawDeinit(self: Inner) !void {
             self.allocator.free(self.img);
         }
 
@@ -137,9 +200,9 @@ pub const Source = union(enum) {
         };
         return .{.width=dims[0], .height=dims[1]};
     }
-    pub fn deinit(self: Self) void {
+    pub fn deinit(self: Self) !void {
         switch (self) {
-            inline else => |inner| inner.rawDeinit(),
+            inline else => |inner| return inner.rawDeinit(),
         }
     }
 };

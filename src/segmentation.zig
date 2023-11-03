@@ -15,7 +15,19 @@ alc: std.mem.Allocator,
 shader: raylib.Shader,
 
 pub fn new(alc: std.mem.Allocator, depth: u32) !Self {
-    const camera = try cam.getCam(.{});
+    const camera = try cam.getCam(.{
+        .props = &.{
+            .{.EXPOSURE, 0.5},
+            .{.CONTRAST, 0},
+            .{.GAIN, 0},
+            .{.SHARPNESS, 0},
+            .{.BACKLIGHTCOMP, 0},
+            .{.SATURATION, 1},
+            .{.WHITEBALANCE, 0.5},
+            .{.GAMMA, 0},
+            .{.ZOOM, 1},
+        },
+    });
     const info = camera.dimensions();
     const buf = try alc.alloc(u8, info.width * info.height * 3);
     const segmentation_shader = raylib.LoadShader(
@@ -69,7 +81,9 @@ pub fn draw(self: Self) void {
 }
 
 pub fn deinit(self: *Self) void {
-    self.cam.deinit();
+    self.cam.deinit() catch |err| {
+        std.debug.print("error: {any}\n", .{err});
+    };
     self.alc.free(self.buf);
     self.texture.deinit();
 }
