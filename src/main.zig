@@ -51,8 +51,6 @@ pub fn main() !void {
     audio_processor.play();
 
     while (!raylib.WindowShouldClose()) {
-        audio_processor.process();
-
         raylib.BeginDrawing();
         defer raylib.EndDrawing();
         raylib.ClearBackground(raylib.BLACK);

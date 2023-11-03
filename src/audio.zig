@@ -1,5 +1,6 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
+const Random = std.rand.Random;
 
 const raylib = @import("raylib");
 
@@ -19,7 +20,10 @@ pub const AudioProcessor = struct {
         raylib.SetAudioStreamBufferSizeDefault(audio_processor.max_samples_per_update);
 
         audio_processor.audio_stream = raylib.LoadAudioStream(44100, 16, 1);
-        raylib.SetAudioStreamCallback(audio_processor.audio_stream, &audio_callback);
+        raylib.SetAudioStreamCallback(
+            audio_processor.audio_stream,
+            &audio_stream_callback,
+        );
 
         return audio_processor;
     }
@@ -34,23 +38,17 @@ pub const AudioProcessor = struct {
         raylib.PlayAudioStream(self.audio_stream);
     }
 
-    pub fn process(self: *AudioProcessor) void {
-        if (raylib.IsAudioStreamProcessed(self.audio_stream)) {
-            var write_cursor: usize = 0;
-            while (write_cursor < self.max_samples_per_update) : (write_cursor += 1) {}
-
-            raylib.UpdateAudioStream(
-                self.audio_stream,
-                self.write_buffer.ptr,
-                self.max_samples_per_update,
-            );
-            //     std.debug.print("Processed\n", .{});
-        }
-    }
-
-    fn audio_callback(bufferData: ?*anyopaque, frames: u32) void {
+    fn audio_stream_callback(buffer_data: ?*anyopaque, frames: u32) void {
         _ = frames;
-        _ = bufferData;
-        // std.debug.print("SetTargetFPS", .{});
+        _ = buffer_data;
+        // if (buffer_data != null) {
+        //     var i: usize = 0;
+        //     while (i < frames) : (i += 1) {
+        //         const value = @sin(@as(f16, @floatFromInt(i * 10)));
+        //         const data: [*]f16 = @alignCast(@ptrCast(buffer_data));
+        //         data[i] = value;
+        //         std.debug.print("{} {}\n", .{ i, value });
+        //     }
+        // }
     }
 };
