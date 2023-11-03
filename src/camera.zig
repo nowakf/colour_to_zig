@@ -157,6 +157,9 @@ pub const Source = union(enum) {
         pub fn rawGetFrame(self: Inner, buf: []u8) !void {
             try cam_error(c.Cap_captureFrame(self.ctx, self.stream_id, @ptrCast(buf.ptr), @intCast(buf.len)));
         }
+        pub fn rawIsReady(self: Inner) bool {
+            return c.Cap_hasNewFrame(self.ctx, self.stream_id) == 1;
+        }
         pub fn rawDimensions(self: Inner) [2]u32 {
             return .{self.info.width, self.info.height};
         }

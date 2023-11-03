@@ -46,7 +46,7 @@ pub fn new(alc: std.mem.Allocator, depth: u32) !Self {
             .id = raylib.rlGetTextureIdDefault(),
             .width = tex3d.width,
             .height = tex3d.height,
-            .mipmaps = 1, //?
+            .mipmaps = 1, 
             .format = tex3d.format
         }, //this feels kind of likely to cause bugs
         .cam = camera,
