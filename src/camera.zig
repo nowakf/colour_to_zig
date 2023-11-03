@@ -101,20 +101,29 @@ pub fn getCam(conf: Config) !Source {
         return error.INVALID_FORMAT_CNT;
     }
 
-    //just return the largest format available
-    var fmt = c.CapFormatInfo{};
-    var fmt_id : u32 = 0;
+    //fallback returns the largest fastest format available
+    const Fmt = struct{fmt: c.CapFormatInfo, id: u32};
+    var matching : ?Fmt = null;
+    var fallback : Fmt = .{.fmt=c.CapFormatInfo{}, .id=0};
     for (0..@intCast(fmt_cnt)) |id| {
         var cur = c.CapFormatInfo{};
-        const res = c.Cap_getFormatInfo(ctx, dev_id, @intCast(id), &cur);
-        _ = res;
-        if ((conf.fourcc == null or cur.fourcc == conf.fourcc) and cur.width * cur.height > fmt.width * fmt.height) {
-            fmt = cur;
-            fmt_id = @intCast(id);
+        try cam_error(c.Cap_getFormatInfo(ctx, dev_id, @intCast(id), &cur));
+        if (cur.width * cur.height * cur.fps > fallback.fmt.width * fallback.fmt.height * fallback.fmt.fps) {
+            fallback = .{
+                .fmt=cur,
+                .id=@intCast(id)
+            };
+            if (cur.fourcc == conf.fourcc) {
+                matching = .{
+                    .fmt=cur,
+                    .id=@intCast(id)
+                };
+            }
         }
     }
+    const fmt = if (matching) |m| m else fallback;
 
-    const stream_id = c.Cap_openStream(ctx, dev_id, fmt_id);
+    const stream_id = c.Cap_openStream(ctx, dev_id, fmt.id);
     if (stream_id == -1) {
         return error.OPEN_STREAM_FAILED;
     }
@@ -130,7 +139,7 @@ pub fn getCam(conf: Config) !Source {
     return Source {
         .Cam = .{
             .ctx = ctx,
-            .info = fmt,
+            .info = fmt.fmt,
             .stream_id = stream_id,
         }
     };
