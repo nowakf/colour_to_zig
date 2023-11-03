@@ -22,7 +22,7 @@ pub fn new(alc: std.mem.Allocator, depth: u32) !Self {
             .{.GAIN, 0},
             .{.SHARPNESS, 0},
             .{.BACKLIGHTCOMP, 0},
-            .{.SATURATION, 1},
+            .{.SATURATION, 0},
             .{.WHITEBALANCE, 0.5},
             .{.GAMMA, 0},
             .{.ZOOM, 1},

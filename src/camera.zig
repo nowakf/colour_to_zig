@@ -66,7 +66,7 @@ fn set_prop(ctx: c.CapContext, str: c.CapStream, prop: Property, value: ?f32) !v
             std.debug.print("values for properties must be in the range of 0-1\n", .{});
             return error.INVALID_SETTING;
         }
-        try cam_error(c.Cap_setAutoProperty(ctx, str, @intFromEnum(prop), 0));
+        try cam_error(c.Cap_setAutoProperty(ctx, str, @intFromEnum(prop), 1));
         var min : i32 = undefined;
         var max : i32 = undefined;
         var default : i32 = undefined;
@@ -75,12 +75,11 @@ fn set_prop(ctx: c.CapContext, str: c.CapStream, prop: Property, value: ?f32) !v
         try cam_error(c.Cap_setProperty(ctx, str, @intFromEnum(prop), ival));
         std.debug.print("set prop {any} with default of {} to {}\n", .{prop, default, ival});
     } else {
-        return cam_error(c.Cap_setAutoProperty(ctx, str, @intFromEnum(prop), 1));
+        return cam_error(c.Cap_setAutoProperty(ctx, str, @intFromEnum(prop), 0));
     }
 }
 
 pub fn getCam(conf: Config) !Source {
-    c.Cap_setLogLevel(8);
     const ctx = c.Cap_createContext();
     const cam_cnt = c.Cap_getDeviceCount(ctx);
     if (cam_cnt == 0) {
