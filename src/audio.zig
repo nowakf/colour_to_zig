@@ -5,7 +5,9 @@ const Random = std.rand.Random;
 
 const raylib = @import("raylib");
 
-var sin_osc = SinOsc{};
+const SR = 44100;
+
+var sin_osc = SinOsc.init(440);
 
 pub const AudioProcessor = struct {
     max_samples_per_update: i32 = 4096,
@@ -18,7 +20,7 @@ pub const AudioProcessor = struct {
         raylib.InitAudioDevice();
         raylib.SetAudioStreamBufferSizeDefault(audio_processor.max_samples_per_update);
 
-        audio_processor.audio_stream = raylib.LoadAudioStream(48000, 16, 1);
+        audio_processor.audio_stream = raylib.LoadAudioStream(SR, 16, 1);
         raylib.SetAudioStreamCallback(
             audio_processor.audio_stream,
             &audio_stream_callback,
@@ -51,13 +53,20 @@ pub const AudioProcessor = struct {
 };
 
 const SinOsc = struct {
+    freq: f32,
+    inc: f32,
     phase: f32 = 0.0,
-    freq: f32 = 440.0,
-    sr: f32 = 48000.0,
+
+    pub fn init(freq: f32) SinOsc {
+        return .{
+            .freq = freq,
+            .inc = math.tau * freq / SR,
+        };
+    }
 
     pub fn sample(self: *SinOsc) f32 {
-        self.phase += 2 * math.pi * self.freq / self.sr;
-        if (self.phase >= 2 * math.pi) self.phase -= 2 * math.pi;
+        self.phase += self.inc;
+        if (self.phase >= math.tau) self.phase -= math.tau;
         return @sin(self.phase);
     }
 };
