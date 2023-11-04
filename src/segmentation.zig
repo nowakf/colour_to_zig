@@ -12,7 +12,10 @@ buf: []u8,
 head: u32 = 0,
 texture: Texture3D,
 alc: std.mem.Allocator,
-shader: raylib.Shader,
+seg_shader: raylib.Shader,
+err_shader: raylib.Shader,
+buf_a: raylib.RenderTexture2D,
+buf_b: raylib.RenderTexture2D,
 
 pub fn new(alc: std.mem.Allocator, depth: u32) !Self {
     const camera = try cam.getCam(.{
@@ -30,16 +33,24 @@ pub fn new(alc: std.mem.Allocator, depth: u32) !Self {
     });
     const info = camera.dimensions();
     const buf = try alc.alloc(u8, info.width * info.height * 3);
-    const segmentation_shader = raylib.LoadShader(
+    const seg_shader = raylib.LoadShader(
         "assets/shaders/vertex.glsl",
         "assets/shaders/segmentation.glsl",
+    );
+    const err_shader = raylib.LoadShader(
+        "assets/shaders/vertex.glsl",
+        "assets/shaders/errode.glsl",
     );
     const tex3d = Texture3D.new(.{
         .width = @intCast(info.width),
         .height = @intCast(info.height),
         .depth = @intCast(depth),
     });
-    tex3d.send(segmentation_shader.id, "texture0");
+
+    const buf_a = raylib.LoadRenderTexture(@intCast(info.width), @intCast(info.height));
+    const buf_b = raylib.LoadRenderTexture(@intCast(info.width), @intCast(info.height));
+
+    tex3d.send(seg_shader.id, "texture0");
     try camera.getFrame(buf); //to work around undefined behaviour in openpnp
     return .{
         .dummy = raylib.Texture2D {
@@ -53,7 +64,10 @@ pub fn new(alc: std.mem.Allocator, depth: u32) !Self {
         .buf = buf,
         .texture = tex3d,
         .alc = alc,
-        .shader = segmentation_shader,
+        .seg_shader = seg_shader,
+        .err_shader = err_shader,
+        .buf_a = buf_a,
+        .buf_b = buf_b,
     };
 }
 
@@ -65,8 +79,8 @@ pub fn update(self: *Self) !void {
         self.buf.ptr
     );
     raylib.SetShaderValue(
-        self.shader,
-        raylib.GetShaderLocation(self.shader, "head"),
+        self.seg_shader,
+        raylib.GetShaderLocation(self.seg_shader, "head"),
         &self.head,
         raylib.ShaderUniformDataType.SHADER_UNIFORM_INT,
     );
@@ -75,9 +89,31 @@ pub fn update(self: *Self) !void {
 }
 
 pub fn draw(self: Self) void {
-    raylib.BeginShaderMode(self.shader);
-    raylib.DrawTexture(self.dummy, 0, 0, raylib.WHITE);
-    raylib.EndShaderMode();
+    raylib.BeginTextureMode(self.buf_a);
+        raylib.ClearBackground(raylib.BLACK);
+        raylib.BeginShaderMode(self.seg_shader);
+        raylib.DrawTexture(self.dummy, 0, 0, raylib.WHITE);
+        raylib.EndShaderMode();
+    raylib.EndTextureMode();
+
+    var a = self.buf_a;
+    var b = self.buf_b;
+    for (0..3) |i| {
+        if (i%2==0) {
+            a = self.buf_b;
+            b = self.buf_a;
+        } else {
+            a = self.buf_a;
+            b = self.buf_b;
+        }
+        raylib.BeginTextureMode(a);
+        raylib.ClearBackground(raylib.BLACK);
+        raylib.BeginShaderMode(self.err_shader);
+            raylib.DrawTexture(b.texture, 0, 0, raylib.WHITE);
+        raylib.EndTextureMode();
+        raylib.EndShaderMode();
+    }
+    raylib.DrawTexture(b.texture, 0, 0, raylib.WHITE);
 }
 
 pub fn deinit(self: *Self) void {
@@ -86,5 +122,6 @@ pub fn deinit(self: *Self) void {
     };
     self.alc.free(self.buf);
     self.texture.deinit();
+    //free textures
 }
 

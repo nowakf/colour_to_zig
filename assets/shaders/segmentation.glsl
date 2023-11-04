@@ -12,6 +12,8 @@ const float PI = 3.14; //update!
 const float HALF_GOLDEN_ANGLE = 1.1999816148643266611157777533165;
 const int TH_SAMPLES = 8;
 
+const vec4 RED = vec4(1.0, 0.0, 0.0, 1.0);
+
 float chop(float s, float top, float bottom) {
 	if (s < top && s > bottom) {
 		return s;
@@ -38,6 +40,10 @@ vec3 rgb2hsv(vec3 c)
     float v = q.x;
 
     return vec3(h, s, v);
+}
+
+float value(vec3 c) {
+    return (1.5 - abs(1.5 - (c.x + c.y + c.z))) * 0.75;
 }
 
 vec4 golden_gaussian_3d(vec2 center) {
@@ -131,6 +137,10 @@ float atan2(in float y, in float x)
     return mix(PI/2.0 - atan(x,y), atan(y,x), s);
 }
 
+float angle(in vec3 a, in vec3 b) {
+	return atan2(length(cross(a, b)), dot(a, b));
+}
+
 vec4 closest_lod_angle(vec2 center, int lod_lvl) {
 	float step = 1.0/float(TH_SAMPLES);
 	float min_angle = 10.0;
@@ -138,7 +148,7 @@ vec4 closest_lod_angle(vec2 center, int lod_lvl) {
 	vec3 lod = textureLod(texture0, vec3(center, float(head)*step), lod_lvl).rgb;
 	for (int i = 0; i<TH_SAMPLES; i++) {
 		vec4 tmp = texture(texture0, vec3(center, i*step));
-		float angle = atan2(length(cross(lod, tmp.rgb)), dot(lod, tmp.rgb));
+		float angle = angle(lod, tmp.rgb);
 		if (angle <  min_angle) {
 			min_angle = angle;
 			o = tmp;
@@ -147,9 +157,12 @@ vec4 closest_lod_angle(vec2 center, int lod_lvl) {
 	return o;
 }
 
+const float COLOR_CONE = 0.65;
+const float EXTREME_CLAMP = 0.25;
+
 void main() {
-	//finalColor = golden_gaussian_3d(fragTexCoord);
-	vec4 rgba = closest_to_lod(fragTexCoord, 1);
-	vec3 hsv = rgb2hsv(rgba.rgb);
-	finalColor = pow(closest_lod_norm_avg(fragTexCoord, 4)*2.0, vec4(3.0));
+	vec4 rgba = closest_lod_angle(fragTexCoord, 4);
+	float midrange = ceil(value(rgba.rgb) - EXTREME_CLAMP);
+	float dist = distance(normalize(rgba.rgb), normalize(RED.rgb));
+	finalColor = vec4(ceil(COLOR_CONE-dist) * midrange);
 }
