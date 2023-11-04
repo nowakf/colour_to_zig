@@ -25,8 +25,8 @@ pub fn main() !void {
     var segger = try segmentation.new(allocator, 16);
     defer segger.deinit();
 
-    var audio_processor = try AudioProcessor.new();
-    defer audio_processor.free();
+    var audio_processor = try AudioProcessor.init(allocator);
+    defer audio_processor.free(allocator);
     audio_processor.play();
 
     while (!raylib.WindowShouldClose()) {
