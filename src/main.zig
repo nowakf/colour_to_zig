@@ -46,8 +46,8 @@ pub fn main() !void {
     var texture = raylib.LoadTextureFromImage(image);
     defer raylib.UnloadTexture(texture);
 
-    var audio_processor = try AudioProcessor.new(allocator);
-    defer audio_processor.free(allocator);
+    var audio_processor = try AudioProcessor.new();
+    defer audio_processor.free();
     audio_processor.play();
 
     while (!raylib.WindowShouldClose()) {
