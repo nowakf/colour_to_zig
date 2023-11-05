@@ -18,7 +18,7 @@ uniform vec3 colours_of_interest[] = vec3[12] (
 	vec3(0.5, 0.0, 1.0)
 );
 uniform float colour_cone_width = 0.55;
-uniform float brightness_margin_width = 0.10;
+uniform float brightness_margin_width = 0.25;
 
 out vec4 finalColor;
 const int Z_SAMPLES = 8;

@@ -120,7 +120,7 @@ fn segment(self: Self) void {
 
 pub fn draw(self: Self) void {
     self.segment();
-//    self.ping_pong();
+    self.ping_pong();
     raylib.DrawTexture(self.buf_a.texture, 0, 0, raylib.WHITE);
 }
 
