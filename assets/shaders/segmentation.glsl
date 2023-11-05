@@ -67,7 +67,7 @@ void main() {
 	vec4 rgba = closest_lod_norm(fragTexCoord, 4);
 	float midrange = ceil(rgb2value(rgba.rgb) - brightness_margin_width);
 	if (rgb2value(rgba.rgb) < brightness_margin_width) {
-		finalColor = vec4(1.0);
+		finalColor = vec4(1.0, 0.0, 0.0, 1.0);
 	} else {
 		finalColor = vec4(value2rgb(characterize(rgba.rgb)), 1.0);
 	}
