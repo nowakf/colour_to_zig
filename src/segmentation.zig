@@ -87,15 +87,7 @@ pub fn update(self: *Self) !void {
     self.head = (self.head + 1) % @as(u32, @intCast(self.texture.depth));
 
 }
-
-pub fn draw(self: Self) void {
-    raylib.BeginTextureMode(self.buf_a);
-        raylib.ClearBackground(raylib.BLACK);
-        raylib.BeginShaderMode(self.seg_shader);
-        raylib.DrawTexture(self.dummy, 0, 0, raylib.WHITE);
-        raylib.EndShaderMode();
-    raylib.EndTextureMode();
-
+fn ping_pong(self: Self) void {
     var a = self.buf_a;
     var b = self.buf_b;
     for (0..3) |i| {
@@ -113,7 +105,23 @@ pub fn draw(self: Self) void {
         raylib.EndTextureMode();
         raylib.EndShaderMode();
     }
-    raylib.DrawTexture(b.texture, 0, 0, raylib.WHITE);
+}
+
+fn segment(self: Self) void {
+    raylib.BeginTextureMode(self.buf_a);
+        //this creates a kind of nice fade away effect
+        //if you delete it
+        raylib.ClearBackground(raylib.BLACK);
+        raylib.BeginShaderMode(self.seg_shader);
+        raylib.DrawTexture(self.dummy, 0, 0, raylib.WHITE);
+        raylib.EndShaderMode();
+    raylib.EndTextureMode();
+}
+
+pub fn draw(self: Self) void {
+    self.segment();
+//    self.ping_pong();
+    raylib.DrawTexture(self.buf_a.texture, 0, 0, raylib.WHITE);
 }
 
 pub fn deinit(self: *Self) void {
