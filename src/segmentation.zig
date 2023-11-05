@@ -111,7 +111,7 @@ fn segment(self: Self) void {
     raylib.BeginTextureMode(self.buf_a);
         //this creates a kind of nice fade away effect
         //if you delete it
-        raylib.ClearBackground(raylib.BLACK);
+        //raylib.ClearBackground(raylib.BLACK);
         raylib.BeginShaderMode(self.seg_shader);
         raylib.DrawTexture(self.dummy, 0, 0, raylib.WHITE);
         raylib.EndShaderMode();
