@@ -17,7 +17,7 @@ uniform vec3 colours_of_interest[] = vec3[12] (
 	vec3(0.0, 1.0, 0.5),
 	vec3(0.5, 0.0, 1.0)
 );
-uniform float colour_cone_width = 4.05;
+uniform float colour_cone_width = 0.50;
 uniform float brightness_margin_width = 0.65;
 
 out vec4 finalColor;
