@@ -7,7 +7,7 @@ const raylib = @import("raylib");
 const SR = 44100;
 const N_OSCS = 8;
 
-var osc_bank: OscBank = undefined;
+var bell: Bell = undefined;
 
 pub const AudioProcessor = struct {
     max_samples_per_update: i32 = 4096,
@@ -15,7 +15,7 @@ pub const AudioProcessor = struct {
     audio_callback: *const fn (bufferData: ?*anyopaque, frames: u32) void = undefined,
 
     pub fn init(alllocator: Allocator) !AudioProcessor {
-        osc_bank = try OscBank.init(alllocator, N_OSCS);
+        bell = try Bell.init(alllocator, 0.5, 0.5);
 
         var audio_processor: AudioProcessor = .{};
 
@@ -32,7 +32,7 @@ pub const AudioProcessor = struct {
     }
 
     pub fn free(self: *AudioProcessor, allocator: Allocator) void {
-        osc_bank.free(allocator);
+        bell.free(allocator);
 
         raylib.UnloadAudioStream(self.audio_stream);
         raylib.CloseAudioDevice();
@@ -46,7 +46,7 @@ pub const AudioProcessor = struct {
         if (buffer_data != null) {
             for (0..frames) |i| {
                 const data: [*]i16 = @alignCast(@ptrCast(buffer_data));
-                const sample = osc_bank.sample() * math.maxInt(i16);
+                const sample = bell.sample() * math.maxInt(i16);
                 data[i] = @intFromFloat(sample);
             }
         }
@@ -66,9 +66,10 @@ const SinOsc = struct {
     }
 
     pub fn sample(self: *SinOsc) f32 {
+        const s = @sin(self.phase);
         self.phase += self.inc;
         if (self.phase >= math.tau) self.phase -= math.tau;
-        return @sin(self.phase);
+        return s;
     }
 };
 
@@ -104,6 +105,51 @@ const OscBank = struct {
         for (0..self.oscs.len) |i| {
             s += self.oscs[i].sample() / 12.0;
         }
+
         return s;
+    }
+};
+
+const Env = struct {
+    a: u32,
+    d: u32,
+    i: u32 = 0,
+
+    pub fn init(a: f32, d: f32) Env {
+        return .{
+            .a = @intFromFloat(a * SR),
+            .d = @intFromFloat(d * SR),
+        };
+    }
+
+    pub fn sample(self: *Env) f32 {
+        var s: f32 = 0.0;
+        if (self.i < self.a) {
+            s = @as(f32, @floatFromInt(self.i)) / @as(f32, @floatFromInt(self.a));
+        } else if (self.i < self.a + self.d) {
+            s = 1.0 - (@as(f32, @floatFromInt(self.i - self.a)) / @as(f32, @floatFromInt(self.d)));
+        }
+        self.i += 1;
+        return s;
+    }
+};
+
+const Bell = struct {
+    osc_bank: OscBank,
+    env: Env,
+
+    pub fn init(allocator: Allocator, a: f32, d: f32) !Bell {
+        return .{
+            .osc_bank = try OscBank.init(allocator, N_OSCS),
+            .env = Env.init(a, d),
+        };
+    }
+
+    pub fn free(self: *Bell, allocator: Allocator) void {
+        self.osc_bank.free(allocator);
+    }
+
+    pub fn sample(self: *Bell) f32 {
+        return self.osc_bank.sample() * self.env.sample();
     }
 };
