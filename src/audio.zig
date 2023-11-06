@@ -15,7 +15,7 @@ pub const AudioProcessor = struct {
     audio_callback: *const fn (bufferData: ?*anyopaque, frames: u32) void = undefined,
 
     pub fn init(alllocator: Allocator) !AudioProcessor {
-        bell = try Bell.init(alllocator, 0.5, 0.5);
+        bell = try Bell.init(alllocator, 0.01, 1.2);
 
         var audio_processor: AudioProcessor = .{};
 
@@ -125,9 +125,9 @@ const Env = struct {
     pub fn sample(self: *Env) f32 {
         var s: f32 = 0.0;
         if (self.i < self.a) {
-            s = @as(f32, @floatFromInt(self.i)) / @as(f32, @floatFromInt(self.a));
+            s = 1.0 - @exp(-5.0 * @as(f32, @floatFromInt(self.i)) / @as(f32, @floatFromInt(self.a)));
         } else if (self.i < self.a + self.d) {
-            s = 1.0 - (@as(f32, @floatFromInt(self.i - self.a)) / @as(f32, @floatFromInt(self.d)));
+            s = @exp(-5.0 * @as(f32, @floatFromInt(self.i - self.a)) / @as(f32, @floatFromInt(self.d)));
         }
         self.i += 1;
         return s;
