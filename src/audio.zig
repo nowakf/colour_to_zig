@@ -5,9 +5,10 @@ const Allocator = std.mem.Allocator;
 const raylib = @import("raylib");
 
 const SR = 44100;
-const N_OSCS = 8;
+const N_VOICES = 16;
+const N_PARTIALS = 8;
 
-var bell: Voice = undefined;
+var synth: Synth = undefined;
 
 pub const AudioProcessor = struct {
     max_samples_per_update: i32 = 4096,
@@ -15,7 +16,8 @@ pub const AudioProcessor = struct {
     audio_callback: *const fn (bufferData: ?*anyopaque, frames: u32) void = undefined,
 
     pub fn init(alllocator: Allocator) !AudioProcessor {
-        bell = try Voice.init(alllocator, N_OSCS, 0.01, 5.0);
+        synth = Synth.init();
+        try synth.trig(alllocator);
 
         var audio_processor: AudioProcessor = .{};
 
@@ -32,7 +34,7 @@ pub const AudioProcessor = struct {
     }
 
     pub fn free(self: *AudioProcessor, allocator: Allocator) void {
-        bell.free(allocator);
+        synth.free(allocator);
 
         raylib.UnloadAudioStream(self.audio_stream);
         raylib.CloseAudioDevice();
@@ -46,7 +48,7 @@ pub const AudioProcessor = struct {
         if (buffer_data != null) {
             for (0..frames) |i| {
                 const data: [*]i16 = @alignCast(@ptrCast(buffer_data));
-                const sample = bell.sample() * math.maxInt(i16);
+                const sample = synth.sample() * math.maxInt(i16);
                 data[i] = @intFromFloat(sample);
             }
         }
@@ -101,11 +103,9 @@ const OscBank = struct {
 
     pub fn sample(self: *OscBank) f32 {
         var s: f32 = 0.0;
-
         for (0..self.oscs.len) |i| {
-            s += self.oscs[i].sample() / 12.0;
+            s += self.oscs[i].sample() / @as(f32, @floatFromInt(self.oscs.len));
         }
-
         return s;
     }
 };
@@ -163,5 +163,52 @@ const Voice = struct {
 
     pub fn finished(self: *Voice) bool {
         return self.env.finished();
+    }
+};
+
+const Synth = struct {
+    voices: [N_VOICES]?Voice,
+
+    pub fn init() Synth {
+        return .{
+            .voices = [_]?Voice{null} ** N_VOICES,
+        };
+    }
+
+    pub fn free(self: *Synth, allocator: Allocator) void {
+        for (0..self.voices.len) |i| {
+            if (self.voices[i] != null) {
+                self.voices[i].?.free(allocator);
+            }
+        }
+    }
+
+    pub fn gc(self: *Synth, allocator: Allocator) void {
+        for (0..self.voices.len) |i| {
+            if (self.voices[i] != null and self.voices[i].?.finished()) {
+                self.voices[i].?.free(allocator);
+                self.voices[i] = null;
+            }
+        }
+    }
+
+    pub fn trig(self: *Synth, allocator: Allocator) !void {
+        for (0..self.voices.len) |i| {
+            if (self.voices[i] == null) {
+                self.voices[i] = try Voice.init(allocator, N_PARTIALS, 0.01, 2);
+                break;
+            }
+        }
+    }
+
+    pub fn sample(self: *Synth) f32 {
+        var s: f32 = 0.0;
+        for (0..self.voices.len) |i| {
+            // TODO: Improve optional handling
+            if (self.voices[i] != null) {
+                s += self.voices[i].?.sample() / @as(f32, @floatFromInt(N_VOICES));
+            }
+        }
+        return s;
     }
 };
