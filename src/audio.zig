@@ -189,20 +189,13 @@ const Synth = struct {
         }
     }
 
-    pub fn gc(self: *Synth, allocator: Allocator) void {
-        for (0..self.voices.len) |i| {
-            if (self.voices[i] != null and self.voices[i].?.finished()) {
-                self.voices[i].?.free(allocator);
-                self.voices[i] = null;
-            }
-        }
-    }
-
     pub fn trig(self: *Synth, allocator: Allocator) !void {
-        // TODO: Perform GC for finished voices inside of loop
-        self.gc(allocator);
         for (0..self.voices.len) |i| {
             if (self.voices[i] == null) {
+                self.voices[i] = try Voice.init(allocator, N_PARTIALS, 0.01, 2);
+                break;
+            } else if (self.voices[i].?.finished()) {
+                self.voices[i].?.free(allocator);
                 self.voices[i] = try Voice.init(allocator, N_PARTIALS, 0.01, 2);
                 break;
             }
