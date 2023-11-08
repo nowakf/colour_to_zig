@@ -15,9 +15,8 @@ pub const AudioProcessor = struct {
     audio_stream: raylib.AudioStream = undefined,
     audio_callback: *const fn (bufferData: ?*anyopaque, frames: u32) void = undefined,
 
-    pub fn init(alllocator: Allocator) !AudioProcessor {
+    pub fn init() !AudioProcessor {
         synth = Synth.init();
-        try synth.trig(alllocator);
 
         var audio_processor: AudioProcessor = .{};
 
@@ -42,6 +41,13 @@ pub const AudioProcessor = struct {
 
     pub fn play(self: *AudioProcessor) void {
         raylib.PlayAudioStream(self.audio_stream);
+    }
+
+    pub fn update(self: *AudioProcessor, allocator: Allocator) !void {
+        _ = self;
+        if (raylib.IsKeyPressed(raylib.KeyboardKey.KEY_SPACE)) {
+            try synth.trig(allocator);
+        }
     }
 
     fn audio_stream_callback(buffer_data: ?*anyopaque, frames: u32) void {
@@ -89,7 +95,7 @@ const OscBank = struct {
 
         for (0..n_oscs) |i| {
             const rand = prng.random();
-            const freq = rand.float(f32) * 10_000 + 1000;
+            const freq = rand.float(f32) * 10_000;
             const osc = SinOsc.init(freq);
             oscs[i] = osc;
         }
@@ -193,6 +199,8 @@ const Synth = struct {
     }
 
     pub fn trig(self: *Synth, allocator: Allocator) !void {
+        // TODO: Perform GC for finished voices inside of loop
+        self.gc(allocator);
         for (0..self.voices.len) |i| {
             if (self.voices[i] == null) {
                 self.voices[i] = try Voice.init(allocator, N_PARTIALS, 0.01, 2);
