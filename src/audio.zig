@@ -7,7 +7,7 @@ const raylib = @import("raylib");
 const SR = 44100;
 const N_OSCS = 8;
 
-var bell: Bell = undefined;
+var bell: Voice = undefined;
 
 pub const AudioProcessor = struct {
     max_samples_per_update: i32 = 4096,
@@ -15,7 +15,7 @@ pub const AudioProcessor = struct {
     audio_callback: *const fn (bufferData: ?*anyopaque, frames: u32) void = undefined,
 
     pub fn init(alllocator: Allocator) !AudioProcessor {
-        bell = try Bell.init(alllocator, 0.01, 1.2);
+        bell = try Voice.init(alllocator, N_OSCS, 0.01, 5.0);
 
         var audio_processor: AudioProcessor = .{};
 
@@ -87,7 +87,7 @@ const OscBank = struct {
 
         for (0..n_oscs) |i| {
             const rand = prng.random();
-            const freq = rand.float(f32) * 18_000 + 2000;
+            const freq = rand.float(f32) * 10_000 + 1000;
             const osc = SinOsc.init(freq);
             oscs[i] = osc;
         }
@@ -132,24 +132,36 @@ const Env = struct {
         self.i += 1;
         return s;
     }
+
+    pub fn finished(self: *Env) bool {
+        return self.i == self.a + self.d;
+    }
 };
 
-const Bell = struct {
+const Voice = struct {
     osc_bank: OscBank,
     env: Env,
 
-    pub fn init(allocator: Allocator, a: f32, d: f32) !Bell {
+    pub fn init(allocator: Allocator, partials: usize, a: f32, d: f32) !Voice {
         return .{
-            .osc_bank = try OscBank.init(allocator, N_OSCS),
+            .osc_bank = try OscBank.init(allocator, partials),
             .env = Env.init(a, d),
         };
     }
 
-    pub fn free(self: *Bell, allocator: Allocator) void {
+    pub fn free(self: *Voice, allocator: Allocator) void {
         self.osc_bank.free(allocator);
     }
 
-    pub fn sample(self: *Bell) f32 {
-        return self.osc_bank.sample() * self.env.sample();
+    pub fn sample(self: *Voice) f32 {
+        if (!self.finished()) {
+            return self.osc_bank.sample() * self.env.sample();
+        } else {
+            return 0.0;
+        }
+    }
+
+    pub fn finished(self: *Voice) bool {
+        return self.env.finished();
     }
 };
