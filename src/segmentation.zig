@@ -34,11 +34,11 @@ pub fn new(alc: std.mem.Allocator, depth: u32) !Self {
     const info = camera.dimensions();
     const buf = try alc.alloc(u8, info.width * info.height * 3);
     const seg_shader = raylib.LoadShader(
-        "assets/shaders/vertex.glsl",
-        "assets/shaders/segmentation.glsl",
+        "assets/shaders/vertex.vert",
+        "assets/shaders/segmentation.frag",
     );
     const err_shader = raylib.LoadShader(
-        "assets/shaders/vertex.glsl",
+        "assets/shaders/vertex.vert",
         "assets/shaders/errode.glsl",
     );
     const tex3d = Texture3D.new(.{
@@ -71,9 +71,65 @@ pub fn new(alc: std.mem.Allocator, depth: u32) !Self {
     };
 }
 
-pub fn update(self: *Self) !void {
+//this should be kept in sync with the uniforms in 
+//assets/shaders/segmentation.glsl
+const SegmentationParams = struct {
+    colour_cone_width: f32 = 0.5,
+    brightness_margin_width: f32 = 0.1,
+    //how to set max_colours? right now I just have it
+    //as 12 in both frag shader and here
+    colours_of_interest: [12][3]f32 = .{
+        .{1,   0,   0},
+        .{0,   1,   0},
+        .{0,   0,   1},
+        .{1,   1,   0},
+        .{0,   1,   1},
+        .{1,   0,   1},
+        .{0.5, 0,   1},
+        .{0,   0.5, 1},
+        .{1,   0.5, 0},
+        .{1,   0,   0.5},
+        .{0,   1,   0.5},
+        .{0.5, 1,   0.5},
+    },
+    fn to_gl_type(comptime T: type) raylib.ShaderUniformDataType {
+        return switch (T) {
+            f32, f64 => raylib.ShaderUniformDataType.SHADER_UNIFORM_FLOAT,
+            [2]f32, [2]f64 => raylib.ShaderUniformDataType.SHADER_UNIFORM_VEC2,
+            [3]f32, [3]f64 => raylib.ShaderUniformDataType.SHADER_UNIFORM_VEC3,
+            [4]f32, [4]f64 => raylib.ShaderUniformDataType.SHADER_UNIFORM_VEC4,
+            i8, u8, i16, u16, i32, u32, usize => raylib.ShaderUniformDataType.SHADER_UNIFORM_INT,
+            inline else => @panic("unknown type\n" ++ @typeName(T)),
+        };
+    }
+};
+
+pub fn update(self: *Self, params: SegmentationParams) !void {
     if (!self.cam.isReady()) return;
     try self.cam.getFrame(self.buf);
+
+    //I don't like this
+    inline for (std.meta.fields(@TypeOf(params))) |f| {
+        var buf : [100]u8 = undefined;
+        const name = try std.fmt.bufPrintZ(&buf, f.name, .{});
+        if (@typeInfo(f.type) == .Array) {
+            raylib.SetShaderValueV(
+                self.seg_shader,
+                raylib.GetShaderLocation(self.seg_shader, name),
+                &@field(params, f.name),
+                @intFromEnum(SegmentationParams.to_gl_type(@TypeOf(@field(params, f.name)[0]))),
+                @field(params, f.name).len
+            );
+        } else {
+            raylib.SetShaderValue(
+                self.seg_shader,
+                raylib.GetShaderLocation(self.seg_shader, name),
+                &@field(params, f.name),
+                SegmentationParams.to_gl_type(f.type),
+            );
+        }
+    }
+
     self.texture.set_frame(
         self.head,
         self.buf.ptr
@@ -110,7 +166,7 @@ fn ping_pong(self: Self) void {
 fn segment(self: Self) void {
     raylib.BeginTextureMode(self.buf_a);
         //this creates a kind of nice fade away effect
-        //if you delete it
+        //if you comment it out
         //raylib.ClearBackground(raylib.BLACK);
         raylib.BeginShaderMode(self.seg_shader);
         raylib.DrawTexture(self.dummy, 0, 0, raylib.WHITE);

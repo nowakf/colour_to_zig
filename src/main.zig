@@ -27,7 +27,7 @@ pub fn main() !void {
         defer raylib.EndDrawing();
         raylib.ClearBackground(raylib.BLACK);
 
-        try segger.update();
+        try segger.update(.{});
 
         segger.draw();
 

@@ -1,4 +1,6 @@
-#version 330
+#version 300 es
+precision mediump float;
+
 in vec2 fragTexCoord;
 
 uniform sampler3D texture0;
@@ -17,8 +19,8 @@ uniform vec3 colours_of_interest[] = vec3[12] (
 	vec3(0.0, 1.0, 0.5),
 	vec3(0.5, 0.0, 1.0)
 );
-uniform float colour_cone_width = 0.50;
-uniform float brightness_margin_width = 0.65;
+uniform float colour_cone_width = 0.40;
+uniform float brightness_margin_width = 0.55;
 
 out vec4 finalColor;
 const int Z_SAMPLES = 8;

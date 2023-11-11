@@ -1,5 +1,4 @@
 const std = @import("std");
-const LazyPath = std.build.LazyPath;
 
 const raylib = @import("vendor/raylib/build.zig");
 
