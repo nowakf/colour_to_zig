@@ -65,23 +65,59 @@ pub const AudioProcessor = struct {
     }
 };
 
-const SinOsc = struct {
-    freq: f32,
-    inc: f32,
-    phase: f32 = 0.0,
+const Synth = struct {
+    voices: [N_VOICES]?Voice,
 
-    pub fn init(freq: f32) SinOsc {
+    pub fn init() Synth {
         return .{
-            .freq = freq,
-            .inc = math.tau * freq / SR,
+            .voices = [_]?Voice{null} ** N_VOICES,
         };
     }
 
-    pub fn sample(self: *SinOsc) f32 {
-        const s = @sin(self.phase);
-        self.phase += self.inc;
-        if (self.phase >= math.tau) self.phase -= math.tau;
+    pub fn trig(self: *Synth) !void {
+        for (0..self.voices.len) |i| {
+            if (self.voices[i] == null) {
+                self.voices[i] = try Voice.init(ATTACK, DECAY);
+                break;
+            } else if (self.voices[i].?.finished()) {
+                self.voices[i] = try Voice.init(ATTACK, DECAY);
+                break;
+            }
+        }
+    }
+
+    pub fn sample(self: *Synth) f32 {
+        var s: f32 = 0.0;
+        for (0..self.voices.len) |i| {
+            if (self.voices[i] != null) {
+                s += self.voices[i].?.sample() / @as(f32, @floatFromInt(N_VOICES));
+            }
+        }
         return s;
+    }
+};
+
+const Voice = struct {
+    osc_bank: OscBank,
+    env: Env,
+
+    pub fn init(a: f32, d: f32) !Voice {
+        return .{
+            .osc_bank = try OscBank.init(),
+            .env = Env.init(a, d),
+        };
+    }
+
+    pub fn sample(self: *Voice) f32 {
+        if (!self.finished()) {
+            return self.osc_bank.sample() * self.env.sample();
+        } else {
+            return 0.0;
+        }
+    }
+
+    pub fn finished(self: *Voice) bool {
+        return self.env.finished();
     }
 };
 
@@ -119,6 +155,26 @@ const OscBank = struct {
     }
 };
 
+const SinOsc = struct {
+    freq: f32,
+    inc: f32,
+    phase: f32 = 0.0,
+
+    pub fn init(freq: f32) SinOsc {
+        return .{
+            .freq = freq,
+            .inc = math.tau * freq / SR,
+        };
+    }
+
+    pub fn sample(self: *SinOsc) f32 {
+        const s = @sin(self.phase);
+        self.phase += self.inc;
+        if (self.phase >= math.tau) self.phase -= math.tau;
+        return s;
+    }
+};
+
 const Env = struct {
     a: u32,
     d: u32,
@@ -144,61 +200,5 @@ const Env = struct {
 
     pub fn finished(self: *Env) bool {
         return self.i == self.a + self.d;
-    }
-};
-
-const Voice = struct {
-    osc_bank: OscBank,
-    env: Env,
-
-    pub fn init(a: f32, d: f32) !Voice {
-        return .{
-            .osc_bank = try OscBank.init(),
-            .env = Env.init(a, d),
-        };
-    }
-
-    pub fn sample(self: *Voice) f32 {
-        if (!self.finished()) {
-            return self.osc_bank.sample() * self.env.sample();
-        } else {
-            return 0.0;
-        }
-    }
-
-    pub fn finished(self: *Voice) bool {
-        return self.env.finished();
-    }
-};
-
-const Synth = struct {
-    voices: [N_VOICES]?Voice,
-
-    pub fn init() Synth {
-        return .{
-            .voices = [_]?Voice{null} ** N_VOICES,
-        };
-    }
-
-    pub fn trig(self: *Synth) !void {
-        for (0..self.voices.len) |i| {
-            if (self.voices[i] == null) {
-                self.voices[i] = try Voice.init(ATTACK, DECAY);
-                break;
-            } else if (self.voices[i].?.finished()) {
-                self.voices[i] = try Voice.init(ATTACK, DECAY);
-                break;
-            }
-        }
-    }
-
-    pub fn sample(self: *Synth) f32 {
-        var s: f32 = 0.0;
-        for (0..self.voices.len) |i| {
-            if (self.voices[i] != null) {
-                s += self.voices[i].?.sample() / @as(f32, @floatFromInt(N_VOICES));
-            }
-        }
-        return s;
     }
 };
