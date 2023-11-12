@@ -5,8 +5,13 @@ const Allocator = std.mem.Allocator;
 const raylib = @import("raylib");
 
 const SR = 44100;
+
 const N_VOICES = 16;
 const N_PARTIALS = 8;
+
+const ATTACK = 0.01;
+const DECAY = 2;
+const MAX_FREQ = 10_000;
 
 var synth: Synth = undefined;
 
@@ -15,7 +20,7 @@ pub const AudioProcessor = struct {
     audio_stream: raylib.AudioStream = undefined,
     audio_callback: *const fn (bufferData: ?*anyopaque, frames: u32) void = undefined,
 
-    pub fn init() !AudioProcessor {
+    pub fn init() AudioProcessor {
         synth = Synth.init();
 
         var audio_processor: AudioProcessor = .{};
@@ -32,9 +37,7 @@ pub const AudioProcessor = struct {
         return audio_processor;
     }
 
-    pub fn free(self: *AudioProcessor, allocator: Allocator) void {
-        synth.free(allocator);
-
+    pub fn deinit(self: *AudioProcessor) void {
         raylib.UnloadAudioStream(self.audio_stream);
         raylib.CloseAudioDevice();
     }
@@ -43,10 +46,11 @@ pub const AudioProcessor = struct {
         raylib.PlayAudioStream(self.audio_stream);
     }
 
-    pub fn update(self: *AudioProcessor, allocator: Allocator) !void {
+    pub fn update(self: *AudioProcessor) !void {
+        // TODO: Remove unused self reference
         _ = self;
         if (raylib.IsKeyPressed(raylib.KeyboardKey.KEY_SPACE)) {
-            try synth.trig(allocator);
+            try synth.trig();
         }
     }
 
@@ -82,29 +86,28 @@ const SinOsc = struct {
 };
 
 const OscBank = struct {
-    oscs: []SinOsc,
+    oscs: [N_PARTIALS]SinOsc,
 
-    pub fn init(allocator: Allocator, n_oscs: usize) !OscBank {
+    pub fn init() !OscBank {
         var prng = std.rand.DefaultPrng.init(blk: {
             var seed: u64 = undefined;
             try std.os.getrandom(std.mem.asBytes(&seed));
             break :blk seed;
         });
+        const rand = prng.random();
 
-        var oscs = try allocator.alloc(SinOsc, n_oscs);
+        var oscs = init: {
+            var initial_value: [N_PARTIALS]SinOsc = undefined;
+            for (
+                &initial_value,
+            ) |*osc| {
+                osc.* = SinOsc.init(rand.float(f32) * MAX_FREQ);
+            }
 
-        for (0..n_oscs) |i| {
-            const rand = prng.random();
-            const freq = rand.float(f32) * 10_000;
-            const osc = SinOsc.init(freq);
-            oscs[i] = osc;
-        }
+            break :init initial_value;
+        };
 
         return .{ .oscs = oscs };
-    }
-
-    pub fn free(self: *OscBank, allocator: Allocator) void {
-        allocator.free(self.oscs);
     }
 
     pub fn sample(self: *OscBank) f32 {
@@ -148,15 +151,11 @@ const Voice = struct {
     osc_bank: OscBank,
     env: Env,
 
-    pub fn init(allocator: Allocator, partials: usize, a: f32, d: f32) !Voice {
+    pub fn init(a: f32, d: f32) !Voice {
         return .{
-            .osc_bank = try OscBank.init(allocator, partials),
+            .osc_bank = try OscBank.init(),
             .env = Env.init(a, d),
         };
-    }
-
-    pub fn free(self: *Voice, allocator: Allocator) void {
-        self.osc_bank.free(allocator);
     }
 
     pub fn sample(self: *Voice) f32 {
@@ -181,22 +180,13 @@ const Synth = struct {
         };
     }
 
-    pub fn free(self: *Synth, allocator: Allocator) void {
-        for (0..self.voices.len) |i| {
-            if (self.voices[i] != null) {
-                self.voices[i].?.free(allocator);
-            }
-        }
-    }
-
-    pub fn trig(self: *Synth, allocator: Allocator) !void {
+    pub fn trig(self: *Synth) !void {
         for (0..self.voices.len) |i| {
             if (self.voices[i] == null) {
-                self.voices[i] = try Voice.init(allocator, N_PARTIALS, 0.01, 2);
+                self.voices[i] = try Voice.init(ATTACK, DECAY);
                 break;
             } else if (self.voices[i].?.finished()) {
-                self.voices[i].?.free(allocator);
-                self.voices[i] = try Voice.init(allocator, N_PARTIALS, 0.01, 2);
+                self.voices[i] = try Voice.init(ATTACK, DECAY);
                 break;
             }
         }
@@ -205,7 +195,6 @@ const Synth = struct {
     pub fn sample(self: *Synth) f32 {
         var s: f32 = 0.0;
         for (0..self.voices.len) |i| {
-            // TODO: Improve optional handling
             if (self.voices[i] != null) {
                 s += self.voices[i].?.sample() / @as(f32, @floatFromInt(N_VOICES));
             }

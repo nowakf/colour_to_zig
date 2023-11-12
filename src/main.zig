@@ -25,12 +25,12 @@ pub fn main() !void {
     var segger = try segmentation.new(allocator, 16);
     defer segger.deinit();
 
-    var audio_processor = try AudioProcessor.init();
-    defer audio_processor.free(allocator);
+    var audio_processor = AudioProcessor.init();
+    defer audio_processor.deinit();
     audio_processor.play();
 
     while (!raylib.WindowShouldClose()) {
-        try audio_processor.update(allocator);
+        try audio_processor.update();
 
         raylib.BeginDrawing();
         defer raylib.EndDrawing();
