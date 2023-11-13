@@ -22,7 +22,7 @@ pub fn main() !void {
     defer raylib.CloseWindow();
     raylib.SetTargetFPS(60);
 
-    var segger = try segmentation.new(allocator, 16, .{});
+    var segger = try segmentation.new(allocator, 8, .{});
     defer segger.deinit();
 
     var audio_processor = AudioProcessor.init();
