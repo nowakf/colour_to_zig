@@ -1,7 +1,6 @@
 const std = @import("std");
 const LazyPath = std.build.LazyPath;
 
-const raylib = @import("vendor/raylib/build.zig");
 
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
@@ -69,7 +68,8 @@ pub fn build(b: *std.Build) void {
 
     exe.linkLibrary(opnpc);
     exe.addIncludePath(.{ .path = "vendor/openpnp-capture/include" });
-    raylib.addTo(b, exe, target, optimize);
+
+    raylib_build(b, exe, target, optimize, .{});
 
     b.installArtifact(exe);
 
@@ -104,3 +104,27 @@ const opnpc_objective_c_src_files = [_][]const u8{
     "vendor/openpnp-capture/mac/platformstream.mm",
     "vendor/openpnp-capture/mac/uvcctrl.mm",
 };
+
+//this is all horrible copy paste because I don't understand zig build system:
+const raylib_root = "vendor/raylib";
+const dir_raylib = raylib_root ++ "/raylib/src";
+const raylib = @import("vendor/raylib/raylib/src/build.zig");
+
+fn raylib_wrapper(b: *std.Build, target: std.zig.CrossTarget, optimize: std.builtin.Mode) *std.build.LibExeObjStep {
+    const lib = b.addStaticLibrary(.{ .name = "raylib-zig", .target = target, .optimize = optimize });
+    lib.addIncludePath(.{ .path = dir_raylib });
+    lib.addIncludePath(.{ .path = raylib_root });
+    lib.linkLibC();
+    lib.addCSourceFile(.{ .file = .{ .path = raylib_root ++ "/marshal.c" }, .flags = &.{} });
+    return lib;
+}
+
+fn raylib_build(b: *std.Build, exe: *std.build.LibExeObjStep, target: std.zig.CrossTarget, optimize: std.builtin.Mode, options: raylib.Options) void {
+    exe.addAnonymousModule("raylib", .{ .source_file = .{ .path = raylib_root ++ "/raylib.zig" } });
+    exe.addIncludePath(.{ .path = dir_raylib });
+    exe.addIncludePath(.{ .path = raylib_root });
+    const lib = raylib_wrapper(b, target, optimize);
+    const lib_raylib = raylib.addRaylib(b, target, optimize, options);
+    exe.linkLibrary(lib_raylib);
+    exe.linkLibrary(lib);
+}
