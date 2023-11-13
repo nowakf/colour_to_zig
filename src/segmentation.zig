@@ -40,7 +40,7 @@ pub fn new(alc: std.mem.Allocator, depth: u32, opts: SegmentationParams) !Self {
     );
     const err_shader = raylib.LoadShader(
         "assets/shaders/vertex.vert",
-        "assets/shaders/errode.glsl",
+        "assets/shaders/errode.frag",
     );
     const tex3d = Texture3D.new(.{
         .width = @intCast(info.width),
