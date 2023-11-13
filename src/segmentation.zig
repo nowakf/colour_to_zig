@@ -16,8 +16,9 @@ seg_shader: raylib.Shader,
 err_shader: raylib.Shader,
 buf_a: raylib.RenderTexture2D,
 buf_b: raylib.RenderTexture2D,
+params: SegmentationParams,
 
-pub fn new(alc: std.mem.Allocator, depth: u32) !Self {
+pub fn new(alc: std.mem.Allocator, depth: u32, opts: SegmentationParams) !Self {
     const camera = try cam.getCam(.{
         .props = &.{
             .{.EXPOSURE, 0.5},
@@ -52,6 +53,7 @@ pub fn new(alc: std.mem.Allocator, depth: u32) !Self {
 
     tex3d.send(seg_shader.id, "texture0");
     try camera.getFrame(buf); //to work around undefined behaviour in openpnp
+    try send_settings(seg_shader, opts);
     return .{
         .dummy = raylib.Texture2D {
             .id = raylib.rlGetTextureIdDefault(),
@@ -68,6 +70,7 @@ pub fn new(alc: std.mem.Allocator, depth: u32) !Self {
         .err_shader = err_shader,
         .buf_a = buf_a,
         .buf_b = buf_b,
+        .params = opts,
     };
 }
 
@@ -103,43 +106,52 @@ const SegmentationParams = struct {
         };
     }
 };
+pub fn update_settings(self: *Self, params: SegmentationParams) !void {
+    self.params = params;
+    try send_settings(self.seg_shader, self.params);
+}
 
-pub fn update(self: *Self, params: SegmentationParams) !void {
-    if (!self.cam.isReady()) return;
-    try self.cam.getFrame(self.buf);
-
-    //I don't like this
+fn send_settings(shader: raylib.Shader, params: SegmentationParams) !void {
+    raylib.BeginShaderMode(shader);
+    defer raylib.EndShaderMode();
     inline for (std.meta.fields(@TypeOf(params))) |f| {
         var buf : [100]u8 = undefined;
         const name = try std.fmt.bufPrintZ(&buf, f.name, .{});
         if (@typeInfo(f.type) == .Array) {
             raylib.SetShaderValueV(
-                self.seg_shader,
-                raylib.GetShaderLocation(self.seg_shader, name),
+                shader,
+                raylib.GetShaderLocation(shader, name),
                 &@field(params, f.name),
                 @intFromEnum(SegmentationParams.to_gl_type(@TypeOf(@field(params, f.name)[0]))),
                 @field(params, f.name).len
             );
         } else {
             raylib.SetShaderValue(
-                self.seg_shader,
-                raylib.GetShaderLocation(self.seg_shader, name),
+                shader,
+                raylib.GetShaderLocation(shader, name),
                 &@field(params, f.name),
                 SegmentationParams.to_gl_type(f.type),
             );
         }
     }
+}
+
+pub fn update(self: *Self) !void {
+    if (!self.cam.isReady()) return;
+    try self.cam.getFrame(self.buf);
 
     self.texture.set_frame(
         self.head,
         self.buf.ptr
     );
+
     raylib.SetShaderValue(
         self.seg_shader,
         raylib.GetShaderLocation(self.seg_shader, "head"),
         &self.head,
         raylib.ShaderUniformDataType.SHADER_UNIFORM_INT,
     );
+
     self.head = (self.head + 1) % @as(u32, @intCast(self.texture.depth));
 
 }
