@@ -2,8 +2,6 @@ const std = @import("std");
 const math = std.math;
 const Allocator = std.mem.Allocator;
 
-const raylib = @import("raylib");
-
 const SR = 44100;
 
 const N_VOICES = 16;
@@ -17,7 +15,7 @@ var synth: Synth = undefined;
 
 pub const AudioProcessor = struct {
     max_samples_per_update: i32 = 4096,
-    audio_stream: raylib.AudioStream = undefined,
+    //audio_stream: raylib.AudioStream = undefined,
     audio_callback: *const fn (bufferData: ?*anyopaque, frames: u32) void = undefined,
 
     pub fn init() AudioProcessor {
@@ -25,33 +23,35 @@ pub const AudioProcessor = struct {
 
         var audio_processor: AudioProcessor = .{};
 
-        raylib.InitAudioDevice();
-        raylib.SetAudioStreamBufferSizeDefault(audio_processor.max_samples_per_update);
+        //raylib.InitAudioDevice();
+        //raylib.SetAudioStreamBufferSizeDefault(audio_processor.max_samples_per_update);
 
-        audio_processor.audio_stream = raylib.LoadAudioStream(SR, 16, 1);
-        raylib.SetAudioStreamCallback(
-            audio_processor.audio_stream,
-            &audio_stream_callback,
-        );
+        //audio_processor.audio_stream = raylib.LoadAudioStream(SR, 16, 1);
+        //raylib.SetAudioStreamCallback(
+        //    audio_processor.audio_stream,
+        //    &audio_stream_callback,
+        //);
 
         return audio_processor;
     }
 
     pub fn deinit(self: *AudioProcessor) void {
-        raylib.UnloadAudioStream(self.audio_stream);
-        raylib.CloseAudioDevice();
+        _ = self;
+        //raylib.UnloadAudioStream(self.audio_stream);
+        //raylib.CloseAudioDevice();
     }
 
     pub fn play(self: *AudioProcessor) void {
-        raylib.PlayAudioStream(self.audio_stream);
+        _ = self;
+        //raylib.PlayAudioStream(self.audio_stream);
     }
 
     pub fn update(self: *AudioProcessor) !void {
         // TODO: Remove unused self reference
         _ = self;
-        if (raylib.IsKeyPressed(raylib.KeyboardKey.KEY_SPACE)) {
-            try synth.trig();
-        }
+        //if (raylib.IsKeyPressed(raylib.KeyboardKey.KEY_SPACE)) {
+        //    try synth.trig();
+        //}
     }
 
     fn audio_stream_callback(buffer_data: ?*anyopaque, frames: u32) void {

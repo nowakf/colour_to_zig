@@ -1,45 +1,53 @@
-const builtin = @import("builtin");
 const std = @import("std");
-const File = std.fs.File;
 
-const ArgParser = @import("argparse.zig").ArgParser;
+const c = @cImport({
+    @cInclude("SDL2/SDL.h");
+});
+
 const AudioProcessor = @import("audio.zig").AudioProcessor;
-const cam = @import("camera.zig");
-const img = @import("img.zig");
-const moore = @import("moore.zig");
-const segmentation = @import("segmentation.zig");
-
-const raylib = @import("raylib");
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    const allocator = gpa.allocator();
     defer if (.leak == gpa.deinit()) {
         std.debug.print("leak detected!\n", .{});
     };
 
-    raylib.InitWindow(800, 400, "window");
-    defer raylib.CloseWindow();
-    raylib.SetTargetFPS(60);
+    if (c.SDL_Init(c.SDL_INIT_VIDEO | c.SDL_INIT_AUDIO) != 0) {
+        c.SDL_Log("Init failed: %s", c.SDL_GetError());
+        return;
+    }
+    defer c.SDL_Quit();
 
-    var segger = try segmentation.new(allocator, 8, .{});
-    defer segger.deinit();
+    const screen = c.SDL_CreateWindow("colours", c.SDL_WINDOWPOS_UNDEFINED, c.SDL_WINDOWPOS_UNDEFINED, 100, 100, c.SDL_WINDOW_OPENGL) orelse {
+        c.SDL_Log("Screen failed: %s", c.SDL_GetError());
+        return;
+    };
+    defer c.SDL_DestroyWindow(screen);
+
+    const renderer = c.SDL_CreateRenderer(screen, -1, 0) orelse {
+        c.SDL_Log("Renderer failed: %s", c.SDL_GetError());
+        return;
+    };
+    defer c.SDL_DestroyRenderer(renderer);
 
     var audio_processor = AudioProcessor.init();
     defer audio_processor.deinit();
     audio_processor.play();
-
-    while (!raylib.WindowShouldClose()) {
+    
+    var quit = false;
+    while (!quit) {
         try audio_processor.update();
-
-        raylib.BeginDrawing();
-        defer raylib.EndDrawing();
-        raylib.ClearBackground(raylib.BLACK);
-
-        try segger.update();
-
-        segger.draw();
-
-        raylib.DrawFPS(10, 10);
+        var event: c.SDL_Event = undefined;
+        while (c.SDL_PollEvent(&event) != 0) {
+            switch (event.type) {
+                c.SDL_QUIT => {
+                    quit = true;
+                },
+                else => {},
+            }
+        }
+        _ = c.SDL_RenderClear(renderer);
+        c.SDL_RenderPresent(renderer);
+        c.SDL_Delay(17);
     }
 }

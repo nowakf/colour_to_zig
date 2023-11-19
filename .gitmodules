@@ -4,3 +4,6 @@
 [submodule "vendor/openpnp-capture"]
 	path = vendor/openpnp-capture
 	url = https://github.com/openpnp/openpnp-capture
+[submodule "SDL"]
+	path = vendor/sdl
+	url = https://github.com/andrewrk/SDL
