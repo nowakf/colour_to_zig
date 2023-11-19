@@ -1,6 +1,6 @@
-[submodule "vendor/raylib"]
-	path = vendor/raylib
-	url = https://github.com/ryupold/raylib.zig
+[submodule "vendor/sdl"]
+	path = vendor/sdl
+	url = https://github.com/andrewrk/SDL
 [submodule "vendor/openpnp-capture"]
 	path = vendor/openpnp-capture
 	url = https://github.com/openpnp/openpnp-capture
