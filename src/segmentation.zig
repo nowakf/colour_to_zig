@@ -48,6 +48,8 @@ pub fn new(alc: std.mem.Allocator, depth: u32, opts: SegmentationParams) !Self {
         .depth = @intCast(depth),
     });
 
+    std.debug.print("camera frame size: {} {}\n", .{info.width, info.height});
+
     const buf_a = raylib.LoadRenderTexture(@intCast(info.width), @intCast(info.height));
     const buf_b = raylib.LoadRenderTexture(@intCast(info.width), @intCast(info.height));
 
