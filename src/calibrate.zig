@@ -38,11 +38,6 @@ pub fn new(alc: std.mem.Allocator, camera: cam.Source) !Self {
     };
 }
 
-const cross = [4]raylib.Vector2{
-    .{.x=-5, .y=0}, .{.x=5,  .y=0},
-    .{.x=0,  .y=-5}, .{.x=0,  .y=5},
-};
-
 fn color_at_pt(self: Self, pt: raylib.Vector2, kernel: u32) raylib.Vector4 {
     const w : u32 = @intCast(self.image.width);
     const sw : f32 = @floatFromInt(raylib.GetScreenWidth());
@@ -69,6 +64,13 @@ fn color_at_pt(self: Self, pt: raylib.Vector2, kernel: u32) raylib.Vector4 {
     };
 }
 
+const cross = [4]raylib.Vector2{
+    .{.x=-5, .y=0}, .{.x=5,  .y=0},
+    .{.x=0,  .y=-5}, .{.x=0,  .y=5},
+};
+//TODO: Make backup file in case you want to restore without recalibrating
+//TODO: Change so you can select a range of colours? 
+//TODO: Add more feedback while calibrating: show how the image will be segmented as colours are picked
 pub fn update(self: *Self) !void {
     try self.cam.getFrame(self.buf);
     const mpos = raylib.GetMousePosition();

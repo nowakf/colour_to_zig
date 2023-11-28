@@ -8,8 +8,8 @@ uniform sampler3D texture0;
 uniform int head;
 uniform vec3 colours_of_interest[MAX_COLORS];
 uniform int colours_of_interest_cnt;
-uniform float colour_cone_width = 0.10;
-uniform float brightness_margin_width = 0.15;
+uniform float colour_cone_width;
+uniform float brightness_margin_width;
 
 out vec4 finalColor;
 const int Z_SAMPLES = 8;
@@ -71,10 +71,10 @@ vec4 closest_lod_norm(vec2 center, int lod_lvl) {
 }
 float characterize(vec3 col) {
 	float best_fit = colour_cone_width;
-	float o = 1.;
+	float o = -1.;
 	for (int i=0; i<colours_of_interest_cnt; i++) {
-		float tmp = distance(normalize(col), normalize(colours_of_interest[i-1]));
-		if (tmp < best_fit) {
+		float tmp = distance(normalize(col), normalize(colours_of_interest[i]));
+		if (tmp <= best_fit) {
 			o = float(i) / float(colours_of_interest_cnt);
 			best_fit = tmp;
 		}
@@ -84,10 +84,9 @@ float characterize(vec3 col) {
 
 void main() {
 	vec4 rgba = golden_gaussian_3d(fragTexCoord);
-	float midrange = ceil(rgb2value(rgba.rgb) - brightness_margin_width);
 	float char = characterize(rgba.rgb);
-	if (char == 1.0 || rgb2value(rgba.rgb) < brightness_margin_width) {
-		finalColor = vec4(1.0);
+	if (char < 0.0 || rgb2value(rgba.rgb) < brightness_margin_width) {
+		finalColor = vec4(rgba);
 	} else {
 		finalColor = vec4(value2rgb(char), 1.0);
 	}

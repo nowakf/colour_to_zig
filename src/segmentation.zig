@@ -64,7 +64,7 @@ pub fn new(alc: std.mem.Allocator, camera: cam.Source, depth: u32, opts: Segment
 //this should be kept in sync with the uniforms in 
 //assets/shaders/segmentation.glsl
 const SegmentationParams = struct {
-    colour_cone_width: f32 = 0.5,
+    colour_cone_width: f32 = 0.2,
     brightness_margin_width: f32 = 0.1,
     //this should be a vector
     //and the shader should have a 'vec_len' uniform.
@@ -163,7 +163,7 @@ fn segment(self: Self) void {
     raylib.BeginTextureMode(self.buf_a);
         //this creates a kind of nice fade away effect
         //if you comment it out
-        //raylib.ClearBackground(raylib.BLACK);
+        raylib.ClearBackground(raylib.BLACK);
         raylib.BeginShaderMode(self.seg_shader);
         raylib.DrawTexture(self.dummy, 0, 0, raylib.WHITE);
         raylib.EndShaderMode();
