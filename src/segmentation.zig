@@ -69,18 +69,7 @@ const SegmentationParams = struct {
     //this should be a vector
     //and the shader should have a 'vec_len' uniform.
     colours_of_interest: []const [3]f32 = &.{
-        .{1,   0,   0},
-        .{0,   1,   0},
-        .{0,   0,   1},
-        .{1,   1,   0},
-        .{0,   1,   1},
-        .{1,   0,   1},
-        .{0.5, 0,   1},
-        .{0,   0.5, 1},
-        .{1,   0.5, 0},
-        .{1,   0,   0.5},
-        .{0,   1,   0.5},
-        .{0.5, 1,   0.5},
+        .{1, 0, 0},
     },
     fn to_gl_type(comptime T: type) raylib.ShaderUniformDataType {
         return switch (T) {
@@ -188,11 +177,9 @@ pub fn draw(self: Self) void {
 }
 
 pub fn deinit(self: *Self) void {
-    self.cam.deinit() catch |err| {
-        std.debug.print("error: {any}\n", .{err});
-    };
     self.alc.free(self.buf);
     self.texture.deinit();
+    raylib.UnloadTexture(self.dummy);
     //free textures
 }
 

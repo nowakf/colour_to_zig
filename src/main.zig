@@ -12,6 +12,23 @@ const calibrator = @import("calibrate.zig");
 
 const raylib = @import("raylib");
 
+pub fn calibrate(alc: std.mem.Allocator, camera: cam.Source) ![][3]f32 {
+    var calib = try calibrator.new(alc, camera);
+    defer calib.deinit();
+    //callibration loop:
+    while (!calib.isDone()) {
+        if (raylib.WindowShouldClose()) {
+            return error.CalibrationIncomplete;
+        }
+        raylib.BeginDrawing();
+        defer raylib.EndDrawing();
+        try calib.update();
+        try calib.draw();
+        raylib.ClearBackground(raylib.BLACK);
+    }
+    return calib.samples.toOwnedSlice();
+}
+
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator = gpa.allocator();
@@ -30,22 +47,13 @@ pub fn main() !void {
                       // so no props are supported
     });
 
+    const selected_colors = try calibrate(allocator, camera);
+    //TODO_never: leaks if you quit early.
 
-
-    var calib = try calibrator.new(allocator, camera);
-    //callibration loop:
-    while (!calib.isDone()) {
-        if (raylib.WindowShouldClose()) {
-            return;
-        }
-        raylib.BeginDrawing();
-        defer raylib.EndDrawing();
-        try calib.update();
-        try calib.draw();
-        raylib.ClearBackground(raylib.BLACK);
-    }
-
-    var segger = try segmentation.new(allocator, camera, 8, .{});
+    var segger = try segmentation.new(allocator, camera, 8, .{
+        .colours_of_interest = selected_colors,
+    });
+    allocator.free(selected_colors);
     defer segger.deinit();
 
     var audio_processor = AudioProcessor.init();
