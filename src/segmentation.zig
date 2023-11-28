@@ -18,20 +18,7 @@ buf_a: raylib.RenderTexture2D,
 buf_b: raylib.RenderTexture2D,
 params: SegmentationParams,
 
-pub fn new(alc: std.mem.Allocator, depth: u32, opts: SegmentationParams) !Self {
-    const camera = try cam.getCam(.{
-        .props = &.{
-            .{.EXPOSURE, 0.5},
-            .{.CONTRAST, 0},
-            .{.GAIN, 0},
-            .{.SHARPNESS, 0},
-            .{.BACKLIGHTCOMP, 0},
-            .{.SATURATION, 0},
-            .{.WHITEBALANCE, 0.5},
-            .{.GAMMA, 0},
-            .{.ZOOM, 1},
-        },
-    });
+pub fn new(alc: std.mem.Allocator, camera: cam.Source, depth: u32, opts: SegmentationParams) !Self {
     const info = camera.dimensions();
     const buf = try alc.alloc(u8, info.width * info.height * 3);
     const seg_shader = raylib.LoadShader(
@@ -79,9 +66,9 @@ pub fn new(alc: std.mem.Allocator, depth: u32, opts: SegmentationParams) !Self {
 const SegmentationParams = struct {
     colour_cone_width: f32 = 0.5,
     brightness_margin_width: f32 = 0.1,
-    //how to set max_colours? right now I just have it
-    //as 12 in both frag shader and here
-    colours_of_interest: [12][3]f32 = .{
+    //this should be a vector
+    //and the shader should have a 'vec_len' uniform.
+    colours_of_interest: []const [3]f32 = &.{
         .{1,   0,   0},
         .{0,   1,   0},
         .{0,   0,   1},
@@ -106,6 +93,7 @@ const SegmentationParams = struct {
         };
     }
 };
+
 pub fn update_settings(self: *Self, params: SegmentationParams) !void {
     self.params = params;
     try send_settings(self.seg_shader, self.params);
@@ -117,13 +105,20 @@ fn send_settings(shader: raylib.Shader, params: SegmentationParams) !void {
     inline for (std.meta.fields(@TypeOf(params))) |f| {
         var buf : [100]u8 = undefined;
         const name = try std.fmt.bufPrintZ(&buf, f.name, .{});
-        if (@typeInfo(f.type) == .Array) {
+        const ty = @typeInfo(f.type);
+        if (ty == .Array or ty == .Pointer) {
             raylib.SetShaderValueV(
                 shader,
                 raylib.GetShaderLocation(shader, name),
-                &@field(params, f.name),
+                if (ty == .Array) &@field(params, f.name) else @field(params, f.name).ptr,
                 @intFromEnum(SegmentationParams.to_gl_type(@TypeOf(@field(params, f.name)[0]))),
-                @field(params, f.name).len
+                @intCast(@field(params, f.name).len)
+            );
+            raylib.SetShaderValue(
+                shader,
+                raylib.GetShaderLocation(shader, try std.fmt.bufPrintZ(&buf, "{s}_cnt", .{f.name})),
+                &@field(params, f.name).len,
+                SegmentationParams.to_gl_type(usize),
             );
         } else {
             raylib.SetShaderValue(

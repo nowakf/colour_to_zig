@@ -1,13 +1,12 @@
 const std = @import("std");
 const ppm = @import("ppm.zig");
 const c = @cImport({
-
     @cInclude("openpnp-capture.h");
 });
 
 //no checks whatsoever
-pub fn fourcc(code: [4]u8) u32 {
-    return std.mem.bytesAsValue(u32, code).*;
+pub fn fourcc(code: []const u8) u32 {
+    return std.mem.bytesAsValue(u32, code[0..4]).*;
 }
 
 pub const Config = struct {
@@ -79,6 +78,10 @@ fn set_prop(ctx: c.CapContext, str: c.CapStream, prop: Property, value: ?f32) !v
     }
 }
 
+fn max_fmt(a: c.CapFormatInfo, b: c.CapFormatInfo) c.CapFormatInfo {
+    return if (a.width * a.height * a.fps > b.width * b.height * b.fps) a else b;
+}
+
 pub fn getCam(conf: Config) !Source {
     const ctx = c.Cap_createContext();
     const cam_cnt = c.Cap_getDeviceCount(ctx);
@@ -86,15 +89,14 @@ pub fn getCam(conf: Config) !Source {
         return error.NO_CAMERA;
     }
     const dev_id = id: {
-        if (conf.name == null) {
-            break :id 0;
-        }
         for (0..cam_cnt) |id| {
             const name : [*:0]const u8 = c.Cap_getDeviceName(ctx, @intCast(id));
-            if (std.mem.eql(u8, std.mem.span(name), conf.name.?)) {
+            std.debug.print("camera '{s}' discovered\n", .{name});
+            if (conf.name != null and std.mem.eql(u8, std.mem.span(name), conf.name.?)) {
                 break :id @as(u32, @intCast(id));
             }
         }
+        std.debug.print("camera '{s}' not discovered, falling back to '{s}'\n", .{conf.name orelse "", c.Cap_getDeviceName(ctx, 0)});
         break :id 0;
     };
     const fmt_cnt = c.Cap_getNumFormats(ctx, dev_id);
@@ -106,20 +108,24 @@ pub fn getCam(conf: Config) !Source {
     const Fmt = struct{fmt: c.CapFormatInfo, id: u32};
     var matching : ?Fmt = null;
     var fallback : Fmt = .{.fmt=c.CapFormatInfo{}, .id=0};
+    std.debug.print("format requested: {s}\n", .{std.mem.asBytes(&conf.fourcc)});
     for (0..@intCast(fmt_cnt)) |id| {
         var cur = c.CapFormatInfo{};
         try cam_error(c.Cap_getFormatInfo(ctx, dev_id, @intCast(id), &cur));
-        if (cur.width * cur.height * cur.fps > fallback.fmt.width * fallback.fmt.height * fallback.fmt.fps) {
-            fallback = .{
-                .fmt=cur,
-                .id=@intCast(id)
+        std.debug.print("format discovered: {any} {s}\n", .{cur, std.mem.asBytes(&cur.fourcc)});
+        if (cur.fourcc == conf.fourcc) {
+            std.debug.print("desired format found!\n", .{});
+            const mx = max_fmt(cur, c.CapFormatInfo{});
+            matching = .{
+                .fmt = mx,
+                .id=if (std.meta.eql(mx, cur)) @intCast(id) else matching.?.id,
             };
-            if (cur.fourcc == conf.fourcc) {
-                matching = .{
-                    .fmt=cur,
-                    .id=@intCast(id)
-                };
-            }
+        } else {
+            const mx = max_fmt(cur, fallback.fmt);
+            fallback = .{
+                .fmt=mx,
+                .id=if (std.meta.eql(mx, cur)) @intCast(id) else fallback.id,
+            };
         }
     }
     const fmt = if (matching) |m| m else fallback;
