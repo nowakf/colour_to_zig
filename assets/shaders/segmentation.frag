@@ -92,6 +92,6 @@ void main() {
 	if (char < 0.0 || rgb2value(rgba.rgb) < brightness_margin_width) {
 		finalColor = vec4(rgba);
 	} else {
-		finalcolor = vec4(char);
+		finalColor = vec4(char);
 	}
 }
