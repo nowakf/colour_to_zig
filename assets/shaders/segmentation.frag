@@ -28,6 +28,10 @@ float noise(vec2 pt) {
 	return fract(sin(dot(pt, vec2(12.9898, 4.1414))) * 43758.5453);
 }
 
+vec4 stack_avg(vec2 center) {
+	return vec4(1.0);
+}
+
 const float PI = 3.14; //update!
 const float HALF_GOLDEN_ANGLE = 1.1999816148643266611157777533165;
 vec4 golden_gaussian_3d(vec2 center) {
@@ -88,6 +92,6 @@ void main() {
 	if (char < 0.0 || rgb2value(rgba.rgb) < brightness_margin_width) {
 		finalColor = vec4(rgba);
 	} else {
-		finalColor = vec4(value2rgb(char), 1.0);
+		finalcolor = vec4(char);
 	}
 }

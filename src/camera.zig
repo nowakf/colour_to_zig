@@ -12,6 +12,7 @@ pub fn fourcc(code: []const u8) u32 {
 pub const Config = struct {
     name: ?[]const u8 = null,
     fourcc: ?u32 = null,
+    dimensions: ?[3]u32 = null,
     props: []const struct{Property, f32} = &.{},
 };
 
@@ -59,6 +60,7 @@ fn cam_error(err: u32) !void {
 }
 
 //value is in the range of 0-1, null returns the property to automatic
+//this must be reworked: openpnp is fucking up somehow so we should do this through the shell
 fn set_prop(ctx: c.CapContext, str: c.CapStream, prop: Property, value: ?f32) !void {
     if (value) |val| {
         if (val > 1.0) {
@@ -78,12 +80,51 @@ fn set_prop(ctx: c.CapContext, str: c.CapStream, prop: Property, value: ?f32) !v
     }
 }
 
-fn max_fmt(a: c.CapFormatInfo, b: c.CapFormatInfo) c.CapFormatInfo {
-    return if (a.width * a.height * a.fps > b.width * b.height * b.fps) a else b;
+
+const Fmt = struct{fmt: c.CapFormatInfo, id: u32};
+
+fn unsigned_abs(a: u32, b: u32) u32 {
+    return @intCast(@abs(@as(i32, @intCast(a)) - @as(i32, @intCast(b))));
+}
+
+fn closer_dims(a: c.CapFormatInfo, b: c.CapFormatInfo, desired: ?[3]u32) bool {
+    const des  = desired orelse .{2000,2000,100};
+        return 
+          unsigned_abs(a.width, des[0]) * unsigned_abs(a.height, des[1]) * unsigned_abs(a.fps, des[2]) <
+          unsigned_abs(b.width, des[0]) * unsigned_abs(b.height, des[1]) * unsigned_abs(b.fps, des[2]);
+}
+
+
+fn getCapFormat(ctx: *anyopaque, dev_id: u32, conf: Config) !Fmt {
+    const fmt_cnt = c.Cap_getNumFormats(ctx, dev_id);
+    if (fmt_cnt == -1) {
+        return error.InvalidFmtCnt;
+    }
+    //fallback returns the largest fastest format available
+    var matching : ?Fmt = null;
+    var fallback : Fmt = .{.fmt=c.CapFormatInfo{}, .id=0};
+    std.debug.print("format requested: {s}\n", .{std.mem.asBytes(&conf.fourcc)});
+    for (0..@intCast(fmt_cnt)) |id| {
+        var cur = c.CapFormatInfo{};
+        try cam_error(c.Cap_getFormatInfo(ctx, dev_id, @intCast(id), &cur));
+        std.debug.print("format discovered: {any} {s}\n", .{cur, std.mem.asBytes(&cur.fourcc)});
+        if (cur.fourcc == conf.fourcc and (matching == null or closer_dims(cur, matching.?.fmt, conf.dimensions))) {
+            matching = .{
+                .fmt = cur,
+                .id=@intCast(id),
+            };
+        } else if (closer_dims(cur, fallback.fmt, conf.dimensions)){
+            fallback = .{
+                .fmt=cur,
+                .id=@intCast(id),
+            };
+        }
+    }
+    return if (matching) |m| m else fallback;
 }
 
 pub fn getCam(conf: Config) !Source {
-    const ctx = c.Cap_createContext();
+    const ctx = c.Cap_createContext() orelse return error.ContextNotCreated;
     const cam_cnt = c.Cap_getDeviceCount(ctx);
     if (cam_cnt == 0) {
         return error.NO_CAMERA;
@@ -99,36 +140,10 @@ pub fn getCam(conf: Config) !Source {
         std.debug.print("camera '{s}' not discovered, falling back to '{s}'\n", .{conf.name orelse "", c.Cap_getDeviceName(ctx, 0)});
         break :id 0;
     };
-    const fmt_cnt = c.Cap_getNumFormats(ctx, dev_id);
-    if (fmt_cnt == -1) {
-        return error.INVALID_FORMAT_CNT;
-    }
 
-    //fallback returns the largest fastest format available
-    const Fmt = struct{fmt: c.CapFormatInfo, id: u32};
-    var matching : ?Fmt = null;
-    var fallback : Fmt = .{.fmt=c.CapFormatInfo{}, .id=0};
-    std.debug.print("format requested: {s}\n", .{std.mem.asBytes(&conf.fourcc)});
-    for (0..@intCast(fmt_cnt)) |id| {
-        var cur = c.CapFormatInfo{};
-        try cam_error(c.Cap_getFormatInfo(ctx, dev_id, @intCast(id), &cur));
-        std.debug.print("format discovered: {any} {s}\n", .{cur, std.mem.asBytes(&cur.fourcc)});
-        if (cur.fourcc == conf.fourcc) {
-            std.debug.print("desired format found!\n", .{});
-            const mx = max_fmt(cur, c.CapFormatInfo{});
-            matching = .{
-                .fmt = mx,
-                .id=if (std.meta.eql(mx, cur)) @intCast(id) else matching.?.id,
-            };
-        } else {
-            const mx = max_fmt(cur, fallback.fmt);
-            fallback = .{
-                .fmt=mx,
-                .id=if (std.meta.eql(mx, cur)) @intCast(id) else fallback.id,
-            };
-        }
-    }
-    const fmt = if (matching) |m| m else fallback;
+    const fmt = try getCapFormat(ctx, dev_id, conf);
+
+    std.debug.print("{any} : {s} chosen\n", .{fmt, std.mem.asBytes(&fmt.fmt.fourcc)});
 
     const stream_id = c.Cap_openStream(ctx, dev_id, fmt.id);
     if (stream_id == -1) {

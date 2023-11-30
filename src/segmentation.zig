@@ -2,6 +2,7 @@ const Texture3D = @import("texture3d.zig");
 const raylib = @import("raylib");
 const cam = @import("camera.zig");
 const std = @import("std");
+const hull = @import("monotone_hull.zig");
 
 const Self = @This();
 
@@ -64,7 +65,7 @@ pub fn new(alc: std.mem.Allocator, camera: cam.Source, depth: u32, opts: Segment
 //this should be kept in sync with the uniforms in 
 //assets/shaders/segmentation.glsl
 const SegmentationParams = struct {
-    colour_cone_width: f32 = 0.2,
+    colour_cone_width: f32 = 0.10,
     brightness_margin_width: f32 = 0.1,
     //this should be a vector
     //and the shader should have a 'vec_len' uniform.
@@ -173,7 +174,24 @@ fn segment(self: Self) void {
 pub fn draw(self: Self) void {
     self.segment();
     self.ping_pong();
-    raylib.DrawTexture(self.buf_a.texture, 0, 0, raylib.WHITE);
+    const w = raylib.GetScreenWidth();
+    const h = raylib.GetScreenHeight();
+    raylib.DrawTexturePro(
+        self.buf_a.texture,
+        .{.x=0, .y=0, .width=@floatFromInt(self.buf_a.texture.width), .height=@floatFromInt(self.buf_a.texture.height)},
+        .{.x=0, .y=0, .width=@floatFromInt(w), .height=@floatFromInt(h)},
+        .{.x=0, .y=0},
+        0,
+        raylib.WHITE
+    );
+    const ctrs = hull.trace(
+        self.alc,
+        raylib.LoadImageFromTexture(self.buf_a.texture)
+    ) catch |err| {
+        std.debug.print("{any}", .{err});
+        return;
+    };
+    _ = ctrs;
 }
 
 pub fn deinit(self: *Self) void {

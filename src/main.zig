@@ -1,3 +1,7 @@
+pub const std_options = struct {
+    pub const log_level = .err;
+};
+
 const builtin = @import("builtin");
 const std = @import("std");
 const File = std.fs.File;
@@ -18,6 +22,7 @@ pub fn calibrate(alc: std.mem.Allocator, camera: cam.Source) ![][3]f32 {
     //callibration loop:
     while (!calib.isDone()) {
         if (raylib.WindowShouldClose()) {
+            calib.samples.deinit();
             return error.CalibrationIncomplete;
         }
         raylib.BeginDrawing();
@@ -36,19 +41,22 @@ pub fn main() !void {
         std.debug.print("leak detected!\n", .{});
     };
 
+    raylib.SetTraceLogLevel(4);
+
     raylib.InitWindow(800, 400, "window");
     defer raylib.CloseWindow();
     raylib.SetTargetFPS(60);
 
+    //doesn't work: annoying
+
     const camera = try cam.getCam(.{
-        .name = "USB Camera-B4.09.24.1",
+        .name = "HD USB Camera: HD USB Camera",
         .fourcc = cam.fourcc("YUYV"),
-        .props = &.{} // I think openpnp is fucking up the ioctl
-                      // so no props are supported
+        .dimensions = .{500, 500, 100},
+        .props = &.{} 
     });
 
     const selected_colors = try calibrate(allocator, camera);
-    //TODO_never: leaks if you quit early.
 
     var segger = try segmentation.new(allocator, camera, 8, .{
         .colours_of_interest = selected_colors,
@@ -67,5 +75,6 @@ pub fn main() !void {
         raylib.ClearBackground(raylib.BLACK);
         try segger.update();
         segger.draw();
+        raylib.DrawFPS(10,10);
     }
 }

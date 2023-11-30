@@ -91,7 +91,16 @@ pub fn update(self: *Self) !void {
 pub fn draw(self: Self) !void {
     const mpos = raylib.GetMousePosition();
     raylib.UpdateTexture(self.screen, self.buf.ptr);
-    raylib.DrawTexture(self.screen, 0, 0, raylib.WHITE);
+    const w = raylib.GetScreenWidth();
+    const h = raylib.GetScreenHeight();
+    raylib.DrawTexturePro(
+        self.screen,
+        .{.x=0, .y=0, .width=@floatFromInt(self.screen.width), .height=@floatFromInt(self.screen.height)},
+        .{.x=0, .y=0, .width=@floatFromInt(w), .height=@floatFromInt(h)},
+        .{.x=0, .y=0},
+        0,
+        raylib.WHITE
+    );
     const mcolor = self.color_at_pt(mpos, 4);
     raylib.DrawRectangle(0, 0, 30, 30, raylib.ColorFromNormalized(mcolor));
     raylib.DrawLineV(cross[0].add(mpos), cross[1].add(mpos), raylib.RED);
