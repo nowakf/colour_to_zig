@@ -10,7 +10,7 @@ const N_VOICES = 16;
 const N_PARTIALS = 8;
 
 const ATTACK = 0.001;
-const MIN_DECAY = 0.1;
+const MIN_DECAY = 0.5;
 const MAX_DECAY = 2;
 
 const MAX_FREQ = 10_000;
@@ -85,7 +85,7 @@ const Delay = struct {
     pub fn init(dur: usize, fb: f32) Delay {
         return .{
             .buf = [_]f32{0.0} ** MAX_DELAY_LENGTH,
-            .dur = dur,
+            .dur = if (dur <= MAX_DELAY_LENGTH) dur else MAX_DELAY_LENGTH,
             .fb = fb,
         };
     }
