@@ -1,5 +1,4 @@
 const std = @import("std");
-const ppm = @import("ppm.zig");
 const c = @cImport({
     @cInclude("openpnp-capture.h");
 });
@@ -16,19 +15,6 @@ pub const Config = struct {
     props: []const struct{Property, f32} = &.{},
 };
 
-pub fn getPPM(alc: std.mem.Allocator, fname: []const u8) !Source {
-    const file = try std.fs.cwd().openFile(fname, .{});
-    defer file.close();
-    const img = ppm.from_file(alc, file);
-    return Source {
-        .PPM = .{
-            .w = img.w,
-            .h = img.h,
-            .img = img.to_owned_rgb_bytes(),
-            .allocator = alc,
-        }
-    };
-}
 
 pub const Property = enum(u32) {
     EXPOSURE      = c.CAPPROPID_EXPOSURE,
@@ -48,35 +34,35 @@ pub const Property = enum(u32) {
 
 
 
-fn cam_error(err: u32) !void {
+fn camError(err: u32) !void {
     return switch (err) {
         c.CAPRESULT_OK,                   => return,
-        c.CAPRESULT_ERR,                  => error.ERR,
-        c.CAPRESULT_DEVICENOTFOUND,       => error.DEVICENOTFOUND,
-        c.CAPRESULT_FORMATNOTSUPPORTED,   => error.FORMATNOTSUPPORTED,
-        c.CAPRESULT_PROPERTYNOTSUPPORTED, => error.PROPERTYNOTSUPPORTED,
+        c.CAPRESULT_ERR,                  => error.Err,
+        c.CAPRESULT_DEVICENOTFOUND,       => error.DeviceNotFound,
+        c.CAPRESULT_FORMATNOTSUPPORTED,   => error.FormatNotSupported,
+        c.CAPRESULT_PROPERTYNOTSUPPORTED, => error.PropNotSupported,
         else                              => std.debug.panic("unknown error value from camera: {}\n", .{err}),
     };
 }
 
 //value is in the range of 0-1, null returns the property to automatic
 //this must be reworked: openpnp is fucking up somehow so we should do this through the shell
-fn set_prop(ctx: c.CapContext, str: c.CapStream, prop: Property, value: ?f32) !void {
+fn setProp(ctx: c.CapContext, str: c.CapStream, prop: Property, value: ?f32) !void {
     if (value) |val| {
         if (val > 1.0) {
-            std.debug.print("values for properties must be in the range of 0-1\n", .{});
-            return error.INVALID_SETTING;
+            std.log.err("values for properties must be in the range of 0-1\n", .{});
+            return error.InvalidSetting;
         }
-        try cam_error(c.Cap_setAutoProperty(ctx, str, @intFromEnum(prop), 1));
+        try camError(c.Cap_setAutoProperty(ctx, str, @intFromEnum(prop), 1));
         var min : i32 = undefined;
         var max : i32 = undefined;
         var default : i32 = undefined;
-        try cam_error(c.Cap_getPropertyLimits(ctx, str, @intFromEnum(prop), &min, &max, &default));
+        try camError(c.Cap_getPropertyLimits(ctx, str, @intFromEnum(prop), &min, &max, &default));
         const ival : i32 = @intFromFloat(val * @as(f32, @floatFromInt(max - min)));
-        try cam_error(c.Cap_setProperty(ctx, str, @intFromEnum(prop), ival));
-        std.debug.print("set prop {any} with default of {} to {}\n", .{prop, default, ival});
+        try camError(c.Cap_setProperty(ctx, str, @intFromEnum(prop), ival));
+        std.log.info("set prop {any} with default of {} to {}\n", .{prop, default, ival});
     } else {
-        return cam_error(c.Cap_setAutoProperty(ctx, str, @intFromEnum(prop), 0));
+        return camError(c.Cap_setAutoProperty(ctx, str, @intFromEnum(prop), 0));
     }
 }
 
@@ -103,11 +89,11 @@ fn getCapFormat(ctx: *anyopaque, dev_id: u32, conf: Config) !Fmt {
     //fallback returns the largest fastest format available
     var matching : ?Fmt = null;
     var fallback : Fmt = .{.fmt=c.CapFormatInfo{}, .id=0};
-    std.debug.print("format requested: {s}\n", .{std.mem.asBytes(&conf.fourcc)});
+    std.log.info("format requested: {s}\n", .{std.mem.asBytes(&conf.fourcc)});
     for (0..@intCast(fmt_cnt)) |id| {
         var cur = c.CapFormatInfo{};
-        try cam_error(c.Cap_getFormatInfo(ctx, dev_id, @intCast(id), &cur));
-        std.debug.print("format discovered: {any} {s}\n", .{cur, std.mem.asBytes(&cur.fourcc)});
+        try camError(c.Cap_getFormatInfo(ctx, dev_id, @intCast(id), &cur));
+        std.log.info("format discovered: {any} {s}\n", .{cur, std.mem.asBytes(&cur.fourcc)});
         if (cur.fourcc == conf.fourcc and (matching == null or closer_dims(cur, matching.?.fmt, conf.dimensions))) {
             matching = .{
                 .fmt = cur,
@@ -123,112 +109,95 @@ fn getCapFormat(ctx: *anyopaque, dev_id: u32, conf: Config) !Fmt {
     return if (matching) |m| m else fallback;
 }
 
-pub fn getCam(conf: Config) !Source {
-    const ctx = c.Cap_createContext() orelse return error.ContextNotCreated;
+fn getDeviceId(ctx: *anyopaque, cam_name: ?[]const u8) !u32 {
     const cam_cnt = c.Cap_getDeviceCount(ctx);
     if (cam_cnt == 0) {
-        return error.NO_CAMERA;
+        return error.NoCameras;
     }
     const dev_id = id: {
         for (0..cam_cnt) |id| {
-            const name : [*:0]const u8 = c.Cap_getDeviceName(ctx, @intCast(id));
-            std.debug.print("camera '{s}' discovered\n", .{name});
-            if (conf.name != null and std.mem.eql(u8, std.mem.span(name), conf.name.?)) {
+            const this_name : [*:0]const u8 = c.Cap_getDeviceName(ctx, @intCast(id));
+            std.log.info("camera '{s}' discovered\n", .{this_name});
+            if (cam_name != null and std.mem.eql(u8, std.mem.span(this_name), cam_name.?)) {
                 break :id @as(u32, @intCast(id));
             }
         }
-        std.debug.print("camera '{s}' not discovered, falling back to '{s}'\n", .{conf.name orelse "", c.Cap_getDeviceName(ctx, 0)});
+        std.log.err("camera '{s}' not discovered, falling back to '{s}'\n", .{cam_name orelse "none specified", c.Cap_getDeviceName(ctx, 0)});
         break :id 0;
     };
+    return dev_id;
+}
 
+pub fn configureCam(ctx: *anyopaque, conf: Config) !struct{info: c.CapFormatInfo, id: i32} {
+    const dev_id = try getDeviceId(ctx, conf.name);
     const fmt = try getCapFormat(ctx, dev_id, conf);
 
-    std.debug.print("{any} : {s} chosen\n", .{fmt, std.mem.asBytes(&fmt.fmt.fourcc)});
+    std.log.info("{any} : {s} chosen\n", .{fmt, std.mem.asBytes(&fmt.fmt.fourcc)});
 
     const stream_id = c.Cap_openStream(ctx, dev_id, fmt.id);
     if (stream_id == -1) {
-        return error.OPEN_STREAM_FAILED;
+        return error.OpenStreamFailed;
     }
+
     for (conf.props) |prop| {
-        set_prop(ctx, stream_id, prop[0], prop[1]) catch |err| {
-            if (err == error.PROPERTYNOTSUPPORTED) {
-                std.debug.print("property: {any} not supported\n", .{prop[0]});
+        setProp(ctx, stream_id, prop[0], prop[1]) catch |err| {
+            if (err == error.PropNotSupported) {
+                std.log.err("property: {any} not supported\n", .{prop[0]});
             } else {
                 return err;
             }
         };
     }
-    return Source {
-        .Cam = .{
-            .ctx = ctx,
-            .info = fmt.fmt,
-            .stream_id = stream_id,
-        }
+    return .{.info=fmt.fmt, .id=stream_id};
+}
+
+const raylib = @import("raylib");
+
+const Self = @This();
+
+ctx: c.CapContext,
+info: c.CapFormatInfo,
+stream_id: i32,
+alc: std.mem.Allocator,
+buf: []u8,
+
+pub fn Camera(alc: std.mem.Allocator, conf: Config) !Self {
+    const ctx = c.Cap_createContext() orelse return error.ContextNotCreated;
+    const stream = try configureCam(ctx, conf);
+    const buf = try alc.alloc(u8,  stream.info.width * stream.info.height * 3);
+    const info = stream.info;
+    return .{
+        .alc = alc,
+        .ctx = ctx,
+        .info = info,
+        .stream_id = stream.id,
+        .buf = buf,
     };
 }
 
-pub const Source = union(enum) {
-    const Self = @This();
-    Cam : struct {
-        const Inner = @This();
-        ctx: c.CapContext,
-        info: c.CapFormatInfo,
-        stream_id: i32,
-        pub fn rawGetFrame(self: Inner, buf: []u8) !void {
-            try cam_error(c.Cap_captureFrame(self.ctx, self.stream_id, @ptrCast(buf.ptr), @intCast(buf.len)));
-        }
-        pub fn rawIsReady(self: Inner) bool {
-            return c.Cap_hasNewFrame(self.ctx, self.stream_id) == 1;
-        }
-        pub fn rawDimensions(self: Inner) [2]u32 {
-            return .{self.info.width, self.info.height};
-        }
-        pub fn rawDeinit(self: Inner) !void {
-            //check errors here
-            try cam_error(c.Cap_closeStream(self.ctx, self.stream_id));
-            try cam_error(c.Cap_releaseContext(self.ctx));
-        }
-    },
-    PPM : struct {
-        const Inner = @This();
-        allocator: std.mem.Allocator,
-        img: []u8,
-        w: u32,
-        h: u32,
-        pub fn rawDimensions(self: Inner) [2]u32 {
-            return .{self.w, self.h};
-        }
-        pub fn rawGetFrame(self: Inner, buf: []u8) !void {
-            @memcpy(buf, self.img);
-        }
-        pub fn rawDeinit(self: Inner) !void {
-            self.allocator.free(self.img);
-        }
+pub fn updateFrame(self: Self) !void {
+    try camError(c.Cap_captureFrame(self.ctx, self.stream_id, @ptrCast(self.buf.ptr), @intCast(self.buf.len)));
+}
+pub fn isReady(self: Self) bool {
+    return c.Cap_hasNewFrame(self.ctx, self.stream_id) == 1;
+}
+pub fn dimensions(self: Self) [2]u32 {
+    return .{self.info.width, self.info.height};
+}
 
-    },
-    pub fn getFrame(self: Self, buf: []u8) !void {
-        switch (self) {
-            inline else => |inner| try inner.rawGetFrame(buf),
-        }
-    }
-    pub fn isReady(self: Self) bool {
-        return switch (self) {
-            .Cam => |inner| inner.rawIsReady(),
-            else => true,
-        };
-    }
-    pub fn dimensions(self: Self) struct {width:u32, height:u32} {
-        const dims = switch (self) {
-            inline else => |inner| inner.rawDimensions(),
-        };
-        return .{.width=dims[0], .height=dims[1]};
-    }
-    pub fn deinit(self: Self) !void {
-        switch (self) {
-            inline else => |inner| return inner.rawDeinit(),
-        }
-    }
-};
+pub fn changeFormat(self: *Self, new_conf: Config) !void {
+    try camError(c.Cap_closeStream(self.ctx, self.stream_id));
+    const new_stream = try configureCam(self.ctx, new_conf);
+    self.info = new_stream.info;
+    self.id = new_stream.id;
+}
+pub fn deinit(self: Self) !void {
+    //check errors here
+    try camError(c.Cap_closeStream(self.ctx, self.stream_id));
+    try camError(c.Cap_releaseContext(self.ctx));
+    raylib.UnloadImage(self.cropped);
+    self.alc.free(self.raw_buf);
+}
 
 
 

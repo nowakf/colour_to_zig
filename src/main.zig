@@ -1,6 +1,3 @@
-pub const std_options = struct {
-    pub const log_level = .err;
-};
 
 const builtin = @import("builtin");
 const std = @import("std");
@@ -8,30 +5,26 @@ const File = std.fs.File;
 
 const ArgParser = @import("argparse.zig").ArgParser;
 const AudioProcessor = @import("audio.zig").AudioProcessor;
-const cam = @import("camera.zig");
+const Cam = @import("camera.zig");
 const img = @import("img.zig");
 const moore = @import("moore.zig");
 const segmentation = @import("segmentation.zig");
 const calibrator = @import("calibrate.zig");
+const Display = @import("display.zig");
 
 const raylib = @import("raylib");
 
-pub fn calibrate(alc: std.mem.Allocator, camera: cam.Source) ![][3]f32 {
+pub fn calibrate(alc: std.mem.Allocator, camera: Cam) !calibrator.Calibration {
     var calib = try calibrator.new(alc, camera);
-    defer calib.deinit();
     //callibration loop:
-    while (!calib.isDone()) {
-        if (raylib.WindowShouldClose()) {
-            calib.samples.deinit();
-            return error.CalibrationIncomplete;
-        }
+    while (!calib.isDone() and !raylib.WindowShouldClose()) {
         raylib.BeginDrawing();
         defer raylib.EndDrawing();
+        raylib.ClearBackground(raylib.BLACK);
         try calib.update();
         try calib.draw();
-        raylib.ClearBackground(raylib.BLACK);
     }
-    return calib.samples.toOwnedSlice();
+    return calib.finish();
 }
 
 pub fn main() !void {
@@ -47,34 +40,37 @@ pub fn main() !void {
     defer raylib.CloseWindow();
     raylib.SetTargetFPS(60);
 
-    //doesn't work: annoying
-
-    const camera = try cam.getCam(.{
+    const camera = try Cam.Camera(allocator, .{
         .name = "HD USB Camera: HD USB Camera",
-        .fourcc = cam.fourcc("YUYV"),
-        .dimensions = .{500, 500, 100},
+        .fourcc = Cam.fourcc("MJPG"),
+        .dimensions = .{1280, 720, 100},
         .props = &.{} 
     });
 
-    const selected_colors = try calibrate(allocator, camera);
+    const calibration = try calibrate(allocator, camera);
+    defer calibration.deinit();
 
-    var segger = try segmentation.new(allocator, camera, 8, .{
-        .colours_of_interest = selected_colors,
-    });
-    allocator.free(selected_colors);
+    var segger = try segmentation.new(
+        calibration.crop, 8, 
+        .{ .colours_of_interest = calibration.samples }
+    );
     defer segger.deinit();
 
     var audio_processor = AudioProcessor.init();
     defer audio_processor.deinit();
     audio_processor.play();
 
+    var display = Display.new();
+
     while (!raylib.WindowShouldClose()) {
         try audio_processor.update();
+        try camera.updateFrame();
         raylib.BeginDrawing();
-        defer raylib.EndDrawing();
-        raylib.ClearBackground(raylib.BLACK);
-        try segger.update();
-        segger.draw();
-        raylib.DrawFPS(10,10);
+            raylib.ClearBackground(raylib.BLACK);
+            const segmented = try segger.process();
+            try segger.debugDraw();
+            display.draw(segmented);
+            raylib.DrawFPS(10,10);
+        raylib.EndDrawing();
     }
 }
