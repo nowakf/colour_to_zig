@@ -13,7 +13,10 @@ const ATTACK = 0.01;
 const DECAY = 2;
 const MAX_FREQ = 10_000;
 
+const MAX_DELAY_LENGTH = SR * 10;
+
 var synth: Synth = undefined;
+var delay: Delay = undefined;
 
 pub const AudioProcessor = struct {
     max_samples_per_update: i32 = 4096,
@@ -22,6 +25,7 @@ pub const AudioProcessor = struct {
 
     pub fn init() AudioProcessor {
         synth = Synth.init();
+        delay = Delay.init(0.2 * SR, 0.75);
 
         var audio_processor: AudioProcessor = .{};
 
@@ -58,9 +62,43 @@ pub const AudioProcessor = struct {
         if (buffer_data != null) {
             for (0..frames) |i| {
                 const data: [*]i16 = @alignCast(@ptrCast(buffer_data));
+
                 const sample = synth.sample() * math.maxInt(i16);
-                data[i] = @intFromFloat(sample);
+                const delayed = delay.sample(sample);
+
+                const mix = sample + delayed;
+
+                data[i] = @intFromFloat(mix);
             }
+        }
+    }
+};
+
+const Delay = struct {
+    buf: [MAX_DELAY_LENGTH]f32,
+    idx: usize = 0,
+    dur: usize,
+    fb: f32,
+
+    pub fn init(dur: usize, fb: f32) Delay {
+        return .{
+            .buf = [_]f32{0.0} ** MAX_DELAY_LENGTH,
+            .dur = dur,
+            .fb = fb,
+        };
+    }
+
+    pub fn sample(self: *Delay, in: f32) f32 {
+        self.buf[self.idx] = (self.buf[self.idx] * self.fb) + in;
+        self.advance();
+        return self.buf[self.idx];
+    }
+
+    fn advance(self: *Delay) void {
+        if (self.idx < self.dur - 1) {
+            self.idx += 1;
+        } else {
+            self.idx = 0;
         }
     }
 };
@@ -132,7 +170,7 @@ const OscBank = struct {
         });
         const rand = prng.random();
 
-        var oscs = init: {
+        const oscs = init: {
             var initial_value: [N_PARTIALS]SinOsc = undefined;
             for (
                 &initial_value,
