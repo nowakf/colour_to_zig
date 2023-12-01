@@ -9,8 +9,10 @@ const SR = 44100;
 const N_VOICES = 16;
 const N_PARTIALS = 8;
 
-const ATTACK = 0.01;
-const DECAY = 2;
+const ATTACK = 0.001;
+const MIN_DECAY = 0.1;
+const MAX_DECAY = 2;
+
 const MAX_FREQ = 10_000;
 
 const MAX_DELAY_LENGTH = SR * 10;
@@ -25,7 +27,7 @@ pub const AudioProcessor = struct {
 
     pub fn init() AudioProcessor {
         synth = Synth.init();
-        delay = Delay.init(0.2 * SR, 0.75);
+        delay = Delay.init(2 * SR, 0.0);
 
         var audio_processor: AudioProcessor = .{};
 
@@ -113,12 +115,22 @@ const Synth = struct {
     }
 
     pub fn trig(self: *Synth) !void {
+        // TODO: Use shared PRNG
+        var prng = std.rand.DefaultPrng.init(blk: {
+            var seed: u64 = undefined;
+            try std.os.getrandom(std.mem.asBytes(&seed));
+            break :blk seed;
+        });
+        const rand = prng.random();
+
+        const decay = MIN_DECAY + rand.float(f32) * (MAX_DECAY - MIN_DECAY);
+
         for (0..self.voices.len) |i| {
             if (self.voices[i] == null) {
-                self.voices[i] = try Voice.init(ATTACK, DECAY);
+                self.voices[i] = try Voice.init(ATTACK, decay);
                 break;
             } else if (self.voices[i].?.finished()) {
-                self.voices[i] = try Voice.init(ATTACK, DECAY);
+                self.voices[i] = try Voice.init(ATTACK, decay);
                 break;
             }
         }
