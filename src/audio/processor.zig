@@ -61,8 +61,7 @@ pub const AudioProcessor = struct {
 
                 const sample = synth.sample() * math.maxInt(i16);
                 const delayed_a = delay_a.sample(sample);
-                const delayed_b = delay_b.sample(delayed_a);
-
+                const delayed_b = delay_b.sample(sample + delayed_a);
                 const mix = sample + delayed_b + delayed_a;
 
                 data[i] = @intFromFloat(mix);

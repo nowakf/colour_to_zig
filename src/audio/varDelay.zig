@@ -35,9 +35,10 @@ pub const VarDelay = struct {
     }
 
     pub fn sample(self: *VarDelay, in: f32) f32 {
-        self.buf[self.del_idx] = (self.buf[self.del_idx] * self.fb) + in;
+        const s = self.buf[self.del_idx];
         self.advance();
-        return self.buf[self.del_idx];
+        self.buf[self.del_idx] = (self.buf[self.del_idx] + in) * self.fb;
+        return s;
     }
 
     fn advance(self: *VarDelay) void {
