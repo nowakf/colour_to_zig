@@ -85,7 +85,8 @@ const OscBank = struct {
             for (
                 &initial_value,
             ) |*osc| {
-                osc.* = SinOsc.init(rand.float(f32) * conf.MAX_FREQ);
+                const freq = conf.MIN_FREQ + rand.float(f32) * (conf.MAX_FREQ - conf.MIN_FREQ);
+                osc.* = SinOsc.init(freq);
             }
 
             break :init initial_value;

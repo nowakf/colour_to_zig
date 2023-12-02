@@ -5,6 +5,7 @@ pub const SR = 44100;
 pub const N_VOICES = 16;
 pub const N_PARTIALS = 8;
 
+pub const MIN_FREQ = 100;
 pub const MAX_FREQ = 10_000;
 
 pub const ATTACK = 0.001;
