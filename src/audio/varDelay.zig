@@ -1,5 +1,7 @@
 const std = @import("std");
 
+const LPF = @import("lpf.zig").LPF;
+
 const conf = @import("config.zig");
 
 pub const VarDelay = struct {
@@ -13,6 +15,8 @@ pub const VarDelay = struct {
 
     var_dur: usize,
     var_idx: usize = 0,
+
+    lpf: LPF,
 
     prng: std.rand.DefaultPrng,
 
@@ -30,6 +34,7 @@ pub const VarDelay = struct {
             .del_dur = dur,
             .fb = fb,
             .prng = prng,
+            .lpf = LPF.init(0.125),
             .var_dur = conf.SR * 4,
         };
     }
@@ -37,7 +42,7 @@ pub const VarDelay = struct {
     pub fn sample(self: *VarDelay, in: f32) f32 {
         const s = self.buf[self.del_idx];
         self.advance();
-        self.buf[self.del_idx] = (self.buf[self.del_idx] + in) * self.fb;
+        self.buf[self.del_idx] = self.lpf.sample((self.buf[self.del_idx] + in) * self.fb);
         return s;
     }
 
@@ -54,6 +59,7 @@ pub const VarDelay = struct {
             const rand = self.prng.random();
             self.del_dur = rand.intRangeAtMost(usize, self.min_dur, self.max_dur);
             self.var_dur = rand.intRangeAtMost(usize, self.min_dur, self.max_dur);
+            self.lpf.cut = rand.float(f32);
             self.var_idx = 0;
         }
     }

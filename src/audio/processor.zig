@@ -3,7 +3,6 @@ const math = std.math;
 
 const raylib = @import("raylib");
 
-const Delay = @import("delay.zig").Delay;
 const VarDelay = @import("varDelay.zig").VarDelay;
 const Synth = @import("synth.zig").Synth;
 
@@ -22,7 +21,6 @@ pub const AudioProcessor = struct {
         synth = Synth.init();
         delay_a = VarDelay.init(200, 2 * conf.SR, 0.75);
         delay_b = VarDelay.init(2 * conf.SR, 4 * conf.SR, 0.5);
-
         var audio_processor: AudioProcessor = .{};
 
         raylib.InitAudioDevice();
@@ -62,7 +60,10 @@ pub const AudioProcessor = struct {
                 const sample = synth.sample() * math.maxInt(i16);
                 const delayed_a = delay_a.sample(sample);
                 const delayed_b = delay_b.sample(sample + delayed_a);
-                const mix = sample + delayed_b + delayed_a;
+
+                var mix = sample + delayed_b + delayed_a;
+                mix = @max(mix, math.minInt(i16));
+                mix = @min(mix, math.maxInt(i16));
 
                 data[i] = @intFromFloat(mix);
             }
