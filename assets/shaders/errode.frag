@@ -44,6 +44,23 @@ vec3 average(vec2 pos) {
 	return rgb / float(cnt + 1);
 }
 
+float closest(vec2 pos, float ref) {
+	vec2 resolution = textureSize(texture0, 0);
+	float o = texture(texture0, pos).r;
+	float min = abs(ref-o);
+	for (int i=0; i<cnt; i++) {
+		float tmp = texture(
+			texture0,
+			pos + kernel[i] / resolution
+		).r;
+		if (abs(ref-tmp) < min) {
+			min = abs(ref-tmp);;
+			o = tmp;
+		}
+	}
+	return o;
+}
+
 vec3 closest(vec2 pos, vec3 ref) {
 	vec2 resolution = textureSize(texture0, 0);
 	vec3 rgb = texture(texture0, pos).rgb;
@@ -79,6 +96,6 @@ float bw_errode() {
 }
 
 void main() {
-	vec3 avg = average(fragTexCoord);
-	finalColor = vec4(closest(fragTexCoord, avg), 1.0);
+	float avg = average(fragTexCoord).r;
+	finalColor = vec4(vec3(closest(fragTexCoord, avg)), 1.0);
 }

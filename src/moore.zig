@@ -25,52 +25,6 @@ pub const Orientation = enum(u2) {
         }
 };
 
-pub const Bitmap = struct {
-    w: u32, 
-    h: u32,
-    bits: std.bit_set.DynamicBitSet,
-    const Self = @This();
-
-    fn at(self: Self, x: u32, y: u32) bool {
-        return x < self.w and y < self.h and self.bits.isSet(y*self.w+x);
-    }
-    fn empty(alc: std.mem.Allocator, w: u32, h: u32) !Self {
-        return .{
-            .w=w, .h=h, .bits=try std.bit_set.DynamicBitSet.initEmpty(alc, w*h),
-        };
-    }
-    fn deinit(self: *Self) void {
-        self.bits.deinit();
-    }
-    fn from_img(alc: std.mem.Allocator, w: u32, h: u32, bytes: []u8) !Bitmap {
-            _ = bytes;
-            _ = h;
-            _ = w;
-            _ = alc;
-
-        const pbm = struct {
-            w: u32,
-            h: u32,
-            data: []align(@alignOf(usize)) u8,
-        };
-        const x = pbm{
-            .w=0, 
-            .h=0, 
-            .data=&.{}
-        };
-        //const pbm = try @import("pbm.zig").parse(file);
-
-        return Self {
-            .w    = x.w,
-            .h    = x.h,
-            .bits = std.bit_set.DynamicBitSetUnmanaged {
-                .bit_length = x.w * x.h,
-                .masks = @ptrCast(@alignCast(x.data)),
-            },
-        };
-    }
-};
-
 fn u32_i2_wrapping_sum(a: u32, b: i2) u32 {
     const res_signed = @as(i64, @intCast(a)) +% b;
     return @as(u32, @bitCast(@as(i32, @truncate(res_signed))));
@@ -85,11 +39,24 @@ test "u32_i2_wrapping_sum" {
 }
 
 
+pub const Map = struct {
+    const Self = @This();
+    ctx: *const anyopaque,
+    _at: *const fn (ctx: *const anyopaque, x: u32, y: u32) bool,
+    _starts: *const fn(ctx: *const anyopaque) [][2]u32,
+    pub fn at(self: Self, x: u32, y: u32) bool {
+        return self._at(self.ctx, x, y);
+    }
+    pub fn starts(self: Self) [][2]u32 {
+        return self._starts(self.ctx);
+    }
+};
+
 pub const Tracer = struct {
     orientation: Orientation = Orientation.N,
     pos: [2]u32,
     const Self = @This();
-    fn step(self: *Self, map: *const Bitmap) ?[2]i2 {
+    fn step(self: *Self, map: Map) ?[2]i2 {
         const three_facing = self.orientation.three_facing();
         var bits = std.bit_set.IntegerBitSet(3).initEmpty();
         for (three_facing, 0..) |delta, i| {
@@ -118,13 +85,7 @@ pub const Tracer = struct {
 
         return new_heading;
     }
-    pub fn find_next_start(map: *const Bitmap, start: [2]u32) ?[2]u32 {
-        var it = map.bits.iterator(.{});
-        it.bit_offset = start[1] / map.w + start[0];
-        const next : u32 = @intCast(it.next().?);
-        return .{next % map.w, next / map.w};
-    }
-    pub fn trace(alc: std.mem.Allocator, map: *const Bitmap, start: [2]u32) !std.ArrayList([2]u32) {
+    pub fn trace(alc: std.mem.Allocator, map: Map, start: [2]u32) !std.ArrayList([2]u32) {
         var contour = std.ArrayList([2]u32).init(alc);
         var tracer = Tracer{
             .pos = start,
@@ -154,14 +115,15 @@ pub const Tracer = struct {
 };
 
 test "tracer_trace" {
+    //not fixed yet
     const ContourSpec = struct {
         const Self = @This();
-        map: Bitmap,
+        map: Map,
         coords: std.ArrayList([2]u32),
         fn from_str(alc: std.mem.Allocator, spec: []const u8) !Self {
             var tokens = std.mem.tokenizeAny(u8, spec, " \n\r\t");
             var vertexes : [64][2]u32 = .{.{0,0}} ** 64;
-            var bmap = try Bitmap.empty(alc, 8, 8);
+            var bmap = try Map.empty(alc, 8, 8);
             var i : u32 = 0;
             var cnt : u32 = 0;
             while (tokens.peek() != null) : (i += 1) {
@@ -180,6 +142,7 @@ test "tracer_trace" {
                 .coords=managed,
             };
         }
+        //pretty sure this is just std.meta.eql
         fn eql(comptime N: comptime_int, comptime T: type, a: []const [N]T, b: []const [N]T) bool {
             if (a.len != b.len) return false;
             if (a.ptr == b.ptr) return true;
