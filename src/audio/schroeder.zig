@@ -12,10 +12,10 @@ pub const Schroeder = struct {
 
     pub fn init(allocator: Allocator) !Schroeder {
         return .{
-            .c_a = try Comb.init(allocator, 1687, 0.773),
-            .c_b = try Comb.init(allocator, 1601, 0.802),
-            .c_c = try Comb.init(allocator, 2053, 0.753),
-            .c_d = try Comb.init(allocator, 2251, 0.773),
+            .c_a = try Comb.init(allocator, 4799, 0.805),
+            .c_b = try Comb.init(allocator, 4999, 0.827),
+            .c_c = try Comb.init(allocator, 5399, 0.883),
+            .c_d = try Comb.init(allocator, 5801, 0.864),
             .ap_a = try Allpass.init(allocator, 1051, 0.7, 0.7),
             .ap_b = try Allpass.init(allocator, 337, 0.7, 0.7),
             .ap_c = try Allpass.init(allocator, 113, 0.7, 0.7),

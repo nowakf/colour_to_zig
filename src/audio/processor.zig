@@ -13,6 +13,7 @@ const conf = @import("config.zig");
 var synth: Synth = undefined;
 var delay_a: Delay = undefined;
 var delay_b: Delay = undefined;
+var delay_c: Delay = undefined;
 var schroeder: Schroeder = undefined;
 
 pub const AudioProcessor = struct {
@@ -24,6 +25,7 @@ pub const AudioProcessor = struct {
         synth = Synth.init();
         delay_a = Delay.init(200, 2 * conf.SR, 0.75);
         delay_b = Delay.init(2 * conf.SR, 4 * conf.SR, 0.65);
+        delay_c = Delay.init(1 * conf.SR, 1 * conf.SR, 0.55);
         schroeder = try Schroeder.init(allocator);
 
         var audio_processor: AudioProcessor = .{};
@@ -65,12 +67,15 @@ pub const AudioProcessor = struct {
                 const data: [*]i16 = @alignCast(@ptrCast(buffer_data));
 
                 const sample = synth.sample() * math.maxInt(i16);
-                // const delayed_a = delay_a.sample(sample);
-                // const delayed_b = delay_b.sample(sample + delayed_a);
+                const delayed_a = delay_a.sample(sample);
+                const delayed_b = delay_b.sample(sample + delayed_a);
 
-                // var mix = sample + delayed_b + delayed_a;
-                const rev = schroeder.sample(sample);
-                var mix = sample + (rev * 0.5);
+                var mix = sample + delayed_b + delayed_a;
+                const rev = schroeder.sample(mix);
+                mix = sample + (rev * 0.5);
+
+                mix = mix + (delay_c.sample(mix) * 0.5);
+
                 mix = @max(mix, math.minInt(i16));
                 mix = @min(mix, math.maxInt(i16));
 

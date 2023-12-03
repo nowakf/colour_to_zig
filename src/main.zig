@@ -1,10 +1,9 @@
-
 const builtin = @import("builtin");
 const std = @import("std");
 const File = std.fs.File;
 
 const ArgParser = @import("argparse.zig").ArgParser;
-const AudioProcessor = @import("audio.zig").AudioProcessor;
+const AudioProcessor = @import("audio/processor.zig").AudioProcessor;
 const Cam = @import("camera.zig");
 const img = @import("img.zig");
 const moore = @import("moore.zig");
@@ -40,25 +39,17 @@ pub fn main() !void {
     defer raylib.CloseWindow();
     raylib.SetTargetFPS(60);
 
-    const camera = try Cam.Camera(allocator, .{
-        .name = "HD USB Camera: HD USB Camera",
-        .fourcc = Cam.fourcc("MJPG"),
-        .dimensions = .{1280, 720, 100},
-        .props = &.{} 
-    });
+    const camera = try Cam.Camera(allocator, .{ .name = "HD USB Camera: HD USB Camera", .fourcc = Cam.fourcc("MJPG"), .dimensions = .{ 1280, 720, 100 }, .props = &.{} });
 
     const calibration = try calibrate(allocator, camera);
     defer calibration.deinit();
 
-    var segger = try segmentation.new(
-        calibration.crop, 8, 
-        .{ .colours_of_interest = calibration.samples }
-    );
+    var segger = try segmentation.new(calibration.crop, 8, .{ .colours_of_interest = calibration.samples });
     defer segger.deinit();
 
-    var audio_processor = AudioProcessor.init();
-    defer audio_processor.deinit();
+    var audio_processor = try AudioProcessor.init(allocator);
     audio_processor.play();
+    // TODO: Deinit audio processor!
 
     var display = Display.new();
 
@@ -66,11 +57,11 @@ pub fn main() !void {
         try audio_processor.update();
         try camera.updateFrame();
         raylib.BeginDrawing();
-            raylib.ClearBackground(raylib.BLACK);
-            const segmented = try segger.process();
-            try segger.debugDraw();
-            display.draw(segmented);
-            raylib.DrawFPS(10,10);
+        raylib.ClearBackground(raylib.BLACK);
+        const segmented = try segger.process();
+        try segger.debugDraw();
+        display.draw(segmented);
+        raylib.DrawFPS(10, 10);
         raylib.EndDrawing();
     }
 }
