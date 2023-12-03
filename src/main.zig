@@ -46,6 +46,7 @@ pub fn main() !void {
         .dimensions = .{1280, 720, 100},
         .props = &.{} 
     });
+    defer camera.deinit();
 
     const calibration = try calibrate(allocator, camera);
     defer calibration.deinit();
@@ -61,16 +62,19 @@ pub fn main() !void {
     audio_processor.play();
 
     var display = Display.new();
-
+    var frame : usize = 0;
+    var buf : [100]u8 = undefined;
     while (!raylib.WindowShouldClose()) {
+        frame +%= 1;
         try audio_processor.update();
         try camera.updateFrame();
+        const segmented = try segger.process();
         raylib.BeginDrawing();
             raylib.ClearBackground(raylib.BLACK);
-            const segmented = try segger.process();
-            try segger.debugDraw();
+            //try segger.debugDraw();
             display.draw(segmented);
             raylib.DrawFPS(10,10);
+            raylib.TakeScreenshot(try std.fmt.bufPrintZ(&buf, "shot{}.png", .{frame}));
         raylib.EndDrawing();
     }
 }

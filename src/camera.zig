@@ -191,12 +191,15 @@ pub fn changeFormat(self: *Self, new_conf: Config) !void {
     self.info = new_stream.info;
     self.id = new_stream.id;
 }
-pub fn deinit(self: Self) !void {
+pub fn deinit(self: Self) void {
     //check errors here
-    try camError(c.Cap_closeStream(self.ctx, self.stream_id));
-    try camError(c.Cap_releaseContext(self.ctx));
-    raylib.UnloadImage(self.cropped);
-    self.alc.free(self.raw_buf);
+    camError(c.Cap_closeStream(self.ctx, self.stream_id)) catch |err| {
+        std.log.err("{} while closing stream\n", .{err});
+    };
+    camError(c.Cap_releaseContext(self.ctx)) catch |err| {
+        std.log.err("{} while releasing context\n", .{err});
+    };
+    self.alc.free(self.buf);
 }
 
 

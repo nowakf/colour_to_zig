@@ -152,11 +152,15 @@ pub fn update(self: *Self) !void {
             } else if (raylib.IsKeyReleased(raylib.KeyboardKey.KEY_BACKSPACE)) {
                 const col = self.samples.popOrNull();
                 std.debug.print("deleted last colour entry: {any}\n", .{col});
+            } else if (raylib.IsKeyReleased(raylib.KeyboardKey.KEY_UP)) {
+                self.colour_cone_width += 0.01;
+            } else if (raylib.IsKeyReleased(raylib.KeyboardKey.KEY_DOWN)) {
+                self.colour_cone_width -= 0.01;
             } else if (raylib.IsKeyReleased(raylib.KeyboardKey.KEY_ENTER)) {
                 std.debug.print("we're done here\n", .{});
                 self.input_state = .Done;
             }
-            },
+        },
         .Done => {
         },
     }

@@ -81,6 +81,10 @@ fn sendValue(self: Self, uniform: []const u8, comptime T: type, val: T) !void {
     );
 }
 
+pub fn sendTexture(self: Self, uniform: []const u8, tex: rl.Texture2D) !void {
+    rl.SetShaderValueTexture(self.inner, try self.location(uniform, null), tex);
+}
+
 pub fn send(self: Self, comptime T: type, v: T, name: ?[]const u8) !void {
     rl.BeginShaderMode(self.inner);
     defer rl.EndShaderMode();
@@ -90,7 +94,7 @@ pub fn send(self: Self, comptime T: type, v: T, name: ?[]const u8) !void {
         .Int, .ComptimeInt => try self.sendValue(name.?, T, v),
         .Float, .ComptimeFloat => try self.sendValue(name.?, T, v),
         .Pointer, .Array => switch(T) {
-            [2]f32, [3]f32, [4]f32, [2]f64, [3]f64, [4]f64 => self.sendValue(name.?, T, v),
+            [2]f32, [3]f32, [4]f32, [2]f64, [3]f64, [4]f64 => try self.sendValue(name.?, T, v),
             inline else => try self.sendArray(name.?, T, v)
         },
         else => @compileError("cannot send" ++ @typeName(T) ++ "\n"),
