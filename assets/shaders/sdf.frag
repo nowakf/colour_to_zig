@@ -16,19 +16,20 @@ float bowl( vec3 p, float r, float h, float t)
 }
 
 float plane(vec3 p, vec4 n) {
+	vec4 tex = texture(texture0, p.xy);
 	return dot(p,
 	n.xyz 
-	) + texture(texture0, p.xy).r + n.w;
-	//p.xy is wrong
+	) + length(tex.rgb)/3.0 * tex.a + n.w;
+	//p.xy is wrong, but it seems to work OK.
+	//probably should do some thinking about this to make it more robust
 }
 
 float world_map(in vec3 p) {
 //	p.xy = (mat2(3,4,-4,3)/5.0)*p.xy;
 
 	return min(
-		sphere(p, vec3(0.), 0.1),
-		min(sphere(p, vec3(0., -0.5, 0.), 0.1),
-		plane(p, normalize(vec4(0.,0.,1.,0.))))
+		sphere(p, vec3(0., 0., -0.1), 0.1),
+		plane(p, normalize(vec4(0.,0.,1.,0.)))
 	);
 }
 

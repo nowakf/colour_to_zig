@@ -105,7 +105,7 @@ fn segment(self: *Self) void {
 
 fn errode(self: *Self) void {
     self.err_shader.begin();
-        self.swap_buf.run(2);
+        self.swap_buf.run(3);
     self.err_shader.end();
 }
 
