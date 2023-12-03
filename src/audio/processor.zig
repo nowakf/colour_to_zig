@@ -3,14 +3,14 @@ const math = std.math;
 
 const raylib = @import("raylib");
 
-const VarDelay = @import("varDelay.zig").VarDelay;
+const Delay = @import("delay.zig").Delay;
 const Synth = @import("synth.zig").Synth;
 
 const conf = @import("config.zig");
 
 var synth: Synth = undefined;
-var delay_a: VarDelay = undefined;
-var delay_b: VarDelay = undefined;
+var delay_a: Delay = undefined;
+var delay_b: Delay = undefined;
 
 pub const AudioProcessor = struct {
     max_samples_per_update: i32 = 4096,
@@ -19,8 +19,8 @@ pub const AudioProcessor = struct {
 
     pub fn init() AudioProcessor {
         synth = Synth.init();
-        delay_a = VarDelay.init(200, 2 * conf.SR, 0.75);
-        delay_b = VarDelay.init(2 * conf.SR, 4 * conf.SR, 0.5);
+        delay_a = Delay.init(200, 2 * conf.SR, 0.75);
+        delay_b = Delay.init(2 * conf.SR, 4 * conf.SR, 0.65);
         var audio_processor: AudioProcessor = .{};
 
         raylib.InitAudioDevice();
