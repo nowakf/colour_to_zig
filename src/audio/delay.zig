@@ -5,64 +5,76 @@ const LPF = @import("lpf.zig").LPF;
 const conf = @import("config.zig");
 
 pub const Delay = struct {
-    min_dur: usize,
-    max_dur: usize,
+    min_del_time: usize,
+    max_del_time: usize,
     fb: f32,
 
-    del_dur: usize,
-    del_idx: usize = 0,
-    buf: [conf.MAX_DELAY_LENGTH]f32,
+    min_var_time: usize,
+    max_var_time: usize,
 
-    var_dur: usize,
+    del_time: usize,
+    del_idx: usize = 0,
+    buf: [conf.MAX_DEL_LENGTH]f32,
+
+    var_time: usize,
     var_idx: usize = 0,
 
     lpf: LPF,
 
     rand: std.rand.Random,
 
-    pub fn init(min_dur: usize, max_dur: usize, fb: f32) Delay {
-        // TODO: Use shared PRNG
+    pub fn init(
+        min_del_time: usize,
+        max_del_time: usize,
+        fb: f32,
+        min_var_time: usize,
+        max_var_time: usize,
+    ) Delay {
+        // TODO: Use shared PRNG/rand
         var prng = std.rand.DefaultPrng.init(0);
         const rand = prng.random();
 
-        const max_d = if (max_dur <= conf.MAX_DELAY_LENGTH) max_dur else conf.MAX_DELAY_LENGTH;
-        const dur = rand.intRangeAtMost(usize, min_dur, max_d);
+        const max_del_time_limited = if (max_del_time <= conf.MAX_DEL_LENGTH) max_del_time else conf.MAX_DEL_LENGTH;
+        const del_time = rand.intRangeAtMost(usize, min_del_time, max_del_time_limited);
+
+        const var_time = rand.intRangeAtMost(usize, min_var_time, max_var_time);
 
         const lpf_freq = rand.float(f32) * 10000 + 2000;
 
         return .{
-            .buf = [_]f32{0.0} ** conf.MAX_DELAY_LENGTH,
-            .min_dur = min_dur,
-            .max_dur = max_d,
-            .del_dur = dur,
+            .min_del_time = min_del_time,
+            .max_del_time = max_del_time_limited,
+            .min_var_time = min_var_time,
+            .max_var_time = max_var_time,
             .fb = fb,
-            .rand = rand,
+            .del_time = del_time,
+            .buf = [_]f32{0.0} ** conf.MAX_DEL_LENGTH,
+            .var_time = var_time,
             .lpf = LPF.init(lpf_freq, 2.75),
-            .var_dur = conf.SR * 4,
+            .rand = rand,
         };
     }
 
     pub fn sample(self: *Delay, in: f32) f32 {
-        const noise = self.rand.float(f32) * 2.0 - 1.0;
-        const s = self.buf[self.del_idx] + noise;
+        const s = self.buf[self.del_idx];
         self.advance();
         self.buf[self.del_idx] = self.lpf.sample((self.buf[self.del_idx] + in) * self.fb);
         return s;
     }
 
     fn advance(self: *Delay) void {
-        if (self.del_idx < self.del_dur - 1) {
+        if (self.del_idx < self.del_time - 1) {
             self.del_idx += 1;
         } else {
             self.del_idx = 0;
         }
 
-        if (self.var_idx < self.var_dur - 1) {
+        if (self.var_idx < self.var_time - 1) {
             self.var_idx += 1;
         } else {
-            self.del_dur = self.rand.intRangeAtMost(usize, self.min_dur, self.max_dur);
-            self.var_dur = self.rand.intRangeAtMost(usize, self.min_dur, self.max_dur);
-            self.lpf.freq = self.rand.float(f32) * 10000 + 2000;
+            self.del_time = self.rand.intRangeAtMost(usize, self.min_del_time, self.max_del_time);
+            self.var_time = self.rand.intRangeAtMost(usize, self.min_del_time, self.max_del_time);
+            self.lpf.freq = conf.MIN_DEL_LPF_FREQ + self.rand.float(f32) * (conf.MAX_DEL_LPF_FREQ - conf.MIN_DEL_LPF_FREQ);
             self.var_idx = 0;
         }
     }

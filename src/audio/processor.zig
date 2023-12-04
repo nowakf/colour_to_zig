@@ -26,9 +26,29 @@ pub const AudioProcessor = struct {
 
     pub fn init(allocator: Allocator, cam: *const Camera) !AudioProcessor {
         synth = Synth.init();
-        delay_a = Delay.init(200, 2 * conf.SR, 0.75);
-        delay_b = Delay.init(2 * conf.SR, 4 * conf.SR, 0.65);
-        delay_c = Delay.init(1 * conf.SR, 1 * conf.SR, 0.55);
+
+        delay_a = Delay.init(
+            conf.DEL_A_MIN_DEL_TIME,
+            conf.DEL_A_MAX_DEL_TIME,
+            conf.DEL_A_FB,
+            conf.DEL_A_MIN_VAR_TIME,
+            conf.DEL_A_MAX_VAR_TIME,
+        );
+        delay_b = Delay.init(
+            conf.DEL_B_MIN_DEL_TIME,
+            conf.DEL_B_MAX_DEL_TIME,
+            conf.DEL_B_FB,
+            conf.DEL_B_MIN_VAR_TIME,
+            conf.DEL_B_MAX_VAR_TIME,
+        );
+        delay_c = Delay.init(
+            conf.DEL_C_MIN_DEL_TIME,
+            conf.DEL_C_MAX_DEL_TIME,
+            conf.DEL_C_FB,
+            conf.DEL_C_MIN_VAR_TIME,
+            conf.DEL_C_MAX_VAR_TIME,
+        );
+
         schroeder = try Schroeder.init(allocator);
 
         var audio_processor: AudioProcessor = .{
@@ -74,16 +94,19 @@ pub const AudioProcessor = struct {
             for (0..frames) |i| {
                 const data: [*]i16 = @alignCast(@ptrCast(buffer_data));
 
-                const sample = synth.sample() * math.maxInt(i16);
+                const sample = synth.sample();
+
                 const delayed_a = delay_a.sample(sample);
-                const delayed_b = delay_b.sample(sample + delayed_a);
+                const delayed_b = delay_b.sample(delayed_a);
 
                 var mix = sample + delayed_b + delayed_a;
+
                 const rev = schroeder.sample(mix);
-                mix = sample + (rev * 0.5);
+                mix = mix * 0.5 + rev * 0.5;
 
                 mix = mix + (delay_c.sample(mix) * 0.5);
 
+                mix = mix * math.maxInt(i16);
                 mix = @max(mix, math.minInt(i16));
                 mix = @min(mix, math.maxInt(i16));
 
