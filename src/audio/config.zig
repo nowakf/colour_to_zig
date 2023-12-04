@@ -1,6 +1,9 @@
 // GLOBAL
 pub const SR = 44100;
 
+// TRIGGER
+pub const TRIG_THRESHOLD = 100;
+
 // SYNTH
 pub const N_VOICES = 16;
 pub const N_PARTIALS = 8;

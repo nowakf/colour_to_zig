@@ -42,20 +42,21 @@ pub fn main() !void {
     const camera = try Cam.Camera(allocator, .{ .name = "HD USB Camera: HD USB Camera", .fourcc = Cam.fourcc("MJPG"), .dimensions = .{ 1280, 720, 100 }, .props = &.{} });
 
     const calibration = try calibrate(allocator, camera);
+
     defer calibration.deinit();
 
     var segger = try segmentation.new(calibration.crop, 8, .{ .colours_of_interest = calibration.samples });
     defer segger.deinit();
 
-    var audio_processor = try AudioProcessor.init(allocator);
+    var audio_processor = try AudioProcessor.init(allocator, &camera);
     audio_processor.play();
     // TODO: Deinit audio processor!
 
     var display = Display.new();
 
     while (!raylib.WindowShouldClose()) {
-        try audio_processor.update();
         try camera.updateFrame();
+        try audio_processor.update();
         raylib.BeginDrawing();
         raylib.ClearBackground(raylib.BLACK);
         const segmented = try segger.process();

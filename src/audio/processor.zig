@@ -4,6 +4,8 @@ const Allocator = std.mem.Allocator;
 
 const raylib = @import("raylib");
 
+const Camera = @import("../camera.zig");
+const CameraTrigger = @import("trigger.zig").CameraTrigger;
 const Delay = @import("delay.zig").Delay;
 const Schroeder = @import("schroeder.zig").Schroeder;
 const Synth = @import("synth.zig").Synth;
@@ -20,15 +22,23 @@ pub const AudioProcessor = struct {
     max_samples_per_update: i32 = 4096,
     audio_stream: raylib.AudioStream = undefined,
     audio_callback: *const fn (bufferData: ?*anyopaque, frames: u32) void = undefined,
+    trigger: CameraTrigger,
 
-    pub fn init(allocator: Allocator) !AudioProcessor {
+    pub fn init(allocator: Allocator, cam: *const Camera) !AudioProcessor {
         synth = Synth.init();
         delay_a = Delay.init(200, 2 * conf.SR, 0.75);
         delay_b = Delay.init(2 * conf.SR, 4 * conf.SR, 0.65);
         delay_c = Delay.init(1 * conf.SR, 1 * conf.SR, 0.55);
         schroeder = try Schroeder.init(allocator);
 
-        var audio_processor: AudioProcessor = .{};
+        var audio_processor: AudioProcessor = .{
+            .trigger = CameraTrigger.init(
+                cam.buf,
+                @as(usize, @as(u32, cam.info.width)),
+                @as(usize, @as(u32, cam.info.height)),
+                conf.TRIG_THRESHOLD,
+            ),
+        };
 
         raylib.InitAudioDevice();
         raylib.SetAudioStreamBufferSizeDefault(audio_processor.max_samples_per_update);
@@ -54,9 +64,7 @@ pub const AudioProcessor = struct {
     }
 
     pub fn update(self: *AudioProcessor) !void {
-        // TODO: Remove unused self reference
-        _ = self;
-        if (raylib.IsKeyPressed(raylib.KeyboardKey.KEY_SPACE)) {
+        if (self.trigger.poll()) {
             try synth.trig();
         }
     }
