@@ -1,34 +1,29 @@
 const std = @import("std");
 const math = std.math;
+const Random = std.rand.Random;
 
 const conf = @import("config.zig");
 
 pub const Synth = struct {
     voices: [conf.N_VOICES]?Voice,
+    rand: *Random,
 
-    pub fn init() Synth {
+    pub fn init(rand: *Random) Synth {
         return .{
             .voices = [_]?Voice{null} ** conf.N_VOICES,
+            .rand = rand,
         };
     }
 
-    pub fn trig(self: *Synth) !void {
-        // TODO: Use shared PRNG
-        var prng = std.rand.DefaultPrng.init(blk: {
-            var seed: u64 = undefined;
-            try std.os.getrandom(std.mem.asBytes(&seed));
-            break :blk seed;
-        });
-        const rand = prng.random();
-
-        const decay = conf.MIN_DECAY + rand.float(f32) * (conf.MAX_DECAY - conf.MIN_DECAY);
+    pub fn trig(self: *Synth) void {
+        const decay = conf.MIN_DECAY + self.rand.float(f32) * (conf.MAX_DECAY - conf.MIN_DECAY);
 
         for (0..self.voices.len) |i| {
             if (self.voices[i] == null) {
-                self.voices[i] = try Voice.init(conf.ATTACK, decay);
+                self.voices[i] = Voice.init(self.rand, conf.ATTACK, decay);
                 break;
             } else if (self.voices[i].?.finished()) {
-                self.voices[i] = try Voice.init(conf.ATTACK, decay);
+                self.voices[i] = Voice.init(self.rand, conf.ATTACK, decay);
                 break;
             }
         }
@@ -41,6 +36,7 @@ pub const Synth = struct {
                 s += self.voices[i].?.sample() / @as(f32, @floatFromInt(conf.N_VOICES));
             }
         }
+
         return s;
     }
 };
@@ -49,9 +45,9 @@ const Voice = struct {
     osc_bank: OscBank,
     env: Env,
 
-    pub fn init(a: f32, d: f32) !Voice {
+    pub fn init(rand: *Random, a: f32, d: f32) Voice {
         return .{
-            .osc_bank = try OscBank.init(),
+            .osc_bank = OscBank.init(rand),
             .env = Env.init(a, d),
         };
     }
@@ -72,14 +68,7 @@ const Voice = struct {
 const OscBank = struct {
     oscs: [conf.N_PARTIALS]SinOsc,
 
-    pub fn init() !OscBank {
-        var prng = std.rand.DefaultPrng.init(blk: {
-            var seed: u64 = undefined;
-            try std.os.getrandom(std.mem.asBytes(&seed));
-            break :blk seed;
-        });
-        const rand = prng.random();
-
+    pub fn init(rand: *Random) OscBank {
         const oscs = init: {
             var initial_value: [conf.N_PARTIALS]SinOsc = undefined;
             for (

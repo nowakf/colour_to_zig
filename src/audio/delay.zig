@@ -1,4 +1,5 @@
 const std = @import("std");
+const Random = std.rand.Random;
 
 const LPF = @import("lpf.zig").LPF;
 
@@ -21,19 +22,16 @@ pub const Delay = struct {
 
     lpf: LPF,
 
-    rand: std.rand.Random,
+    rand: *Random,
 
     pub fn init(
+        rand: *Random,
         min_del_time: usize,
         max_del_time: usize,
         fb: f32,
         min_var_time: usize,
         max_var_time: usize,
     ) Delay {
-        // TODO: Use shared PRNG/rand
-        var prng = std.rand.DefaultPrng.init(0);
-        const rand = prng.random();
-
         const max_del_time_limited = if (max_del_time <= conf.MAX_DEL_LENGTH) max_del_time else conf.MAX_DEL_LENGTH;
         const del_time = rand.intRangeAtMost(usize, min_del_time, max_del_time_limited);
 
@@ -50,7 +48,7 @@ pub const Delay = struct {
             .del_time = del_time,
             .buf = [_]f32{0.0} ** conf.MAX_DEL_LENGTH,
             .var_time = var_time,
-            .lpf = LPF.init(lpf_freq, 2.75),
+            .lpf = LPF.init(lpf_freq, conf.DEL_LPF_RES),
             .rand = rand,
         };
     }

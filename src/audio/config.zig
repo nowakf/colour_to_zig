@@ -20,10 +20,11 @@ pub const MAX_DEL_LENGTH = SR * 10;
 
 pub const MIN_DEL_LPF_FREQ = 1000;
 pub const MAX_DEL_LPF_FREQ = 10_000;
+pub const DEL_LPF_RES = 5.0;
 
 pub const DEL_A_MIN_DEL_TIME = 200;
 pub const DEL_A_MAX_DEL_TIME = SR;
-pub const DEL_A_FB = 0.75;
+pub const DEL_A_FB = 0.85;
 pub const DEL_A_MIN_VAR_TIME = SR;
 pub const DEL_A_MAX_VAR_TIME = SR * 4;
 
@@ -35,6 +36,6 @@ pub const DEL_B_MAX_VAR_TIME = SR * 16;
 
 pub const DEL_C_MIN_DEL_TIME = SR * 4;
 pub const DEL_C_MAX_DEL_TIME = SR * 10;
-pub const DEL_C_FB = 0.85;
+pub const DEL_C_FB = 0.95;
 pub const DEL_C_MIN_VAR_TIME = SR * 16;
 pub const DEL_C_MAX_VAR_TIME = SR * 32;

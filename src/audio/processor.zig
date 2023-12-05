@@ -24,10 +24,11 @@ pub const AudioProcessor = struct {
     audio_callback: *const fn (bufferData: ?*anyopaque, frames: u32) void = undefined,
     trigger: CameraTrigger,
 
-    pub fn init(allocator: Allocator, cam: *const Camera) !AudioProcessor {
-        synth = Synth.init();
+    pub fn init(allocator: Allocator, rand: *std.rand.Random, cam: *const Camera) !AudioProcessor {
+        synth = Synth.init(rand);
 
         delay_a = Delay.init(
+            rand,
             conf.DEL_A_MIN_DEL_TIME,
             conf.DEL_A_MAX_DEL_TIME,
             conf.DEL_A_FB,
@@ -35,6 +36,7 @@ pub const AudioProcessor = struct {
             conf.DEL_A_MAX_VAR_TIME,
         );
         delay_b = Delay.init(
+            rand,
             conf.DEL_B_MIN_DEL_TIME,
             conf.DEL_B_MAX_DEL_TIME,
             conf.DEL_B_FB,
@@ -42,6 +44,7 @@ pub const AudioProcessor = struct {
             conf.DEL_B_MAX_VAR_TIME,
         );
         delay_c = Delay.init(
+            rand,
             conf.DEL_C_MIN_DEL_TIME,
             conf.DEL_C_MAX_DEL_TIME,
             conf.DEL_C_FB,
@@ -83,9 +86,9 @@ pub const AudioProcessor = struct {
         raylib.PlayAudioStream(self.audio_stream);
     }
 
-    pub fn update(self: *AudioProcessor) !void {
+    pub fn update(self: *AudioProcessor) void {
         if (self.trigger.poll()) {
-            try synth.trig();
+            synth.trig();
         }
     }
 
@@ -99,12 +102,12 @@ pub const AudioProcessor = struct {
                 const delayed_a = delay_a.sample(sample);
                 const delayed_b = delay_b.sample(delayed_a);
 
-                var mix = sample + delayed_b + delayed_a;
+                var mix = sample * 0.3 + delayed_b * 0.3 + delayed_a * 0.3;
 
                 const rev = schroeder.sample(mix);
                 mix = mix * 0.5 + rev * 0.5;
 
-                mix = mix + (delay_c.sample(mix) * 0.5);
+                mix = mix * 0.5 + delay_c.sample(mix) * 0.5;
 
                 mix = mix * math.maxInt(i16);
                 mix = @max(mix, math.minInt(i16));

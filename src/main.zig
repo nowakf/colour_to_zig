@@ -33,6 +33,9 @@ pub fn main() !void {
         std.debug.print("leak detected!\n", .{});
     };
 
+    var prng = std.rand.DefaultPrng.init(0);
+    var rand = prng.random();
+
     raylib.SetTraceLogLevel(4);
 
     raylib.InitWindow(800, 400, "window");
@@ -48,7 +51,7 @@ pub fn main() !void {
     var segger = try segmentation.new(calibration.crop, 8, .{ .colours_of_interest = calibration.samples });
     defer segger.deinit();
 
-    var audio_processor = try AudioProcessor.init(allocator, &camera);
+    var audio_processor = try AudioProcessor.init(allocator, &rand, &camera);
     audio_processor.play();
     // TODO: Deinit audio processor!
 
@@ -56,7 +59,7 @@ pub fn main() !void {
 
     while (!raylib.WindowShouldClose()) {
         try camera.updateFrame();
-        try audio_processor.update();
+        audio_processor.update();
         raylib.BeginDrawing();
         raylib.ClearBackground(raylib.BLACK);
         const segmented = try segger.process();
