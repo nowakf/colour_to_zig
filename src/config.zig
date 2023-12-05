@@ -3,9 +3,14 @@ const KeyboardKey = raylib.KeyboardKey;
 
 // **** KEYS ****
 
+// CALIBRATION
 pub const KEY_CALIB_RESET = KeyboardKey.KEY_SPACE;
 pub const KEY_CALIB_DONE = KeyboardKey.KEY_ENTER;
 pub const KEY_CALIB_DELETE = KeyboardKey.KEY_BACKSPACE;
+
+// AUDIO
+pub const KEY_AUDIO_TRIG_THRESH_DEC = KeyboardKey.KEY_Q;
+pub const KEY_AUDIO_TRIG_THRESH_INC = KeyboardKey.KEY_W;
 
 // **** AUDIO ****
 
