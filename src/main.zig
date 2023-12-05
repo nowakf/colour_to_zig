@@ -1,4 +1,3 @@
-
 const builtin = @import("builtin");
 const std = @import("std");
 const File = std.fs.File;
@@ -13,6 +12,10 @@ const calibrator = @import("calibrate.zig");
 const Display = @import("display.zig");
 
 const raylib = @import("raylib");
+
+pub const std_options = struct {
+    pub const log_level = .info;
+};
 
 pub fn calibrate(alc: std.mem.Allocator, camera: Cam) !calibrator.Calibration {
     var calib = try calibrator.new(alc, camera);
@@ -34,16 +37,18 @@ pub fn main() !void {
         std.debug.print("leak detected!\n", .{});
     };
 
-    raylib.SetTraceLogLevel(4);
-
+    //raylib.SetTraceLogLevel(4);
+    raylib.SetConfigFlags(.{
+        .FLAG_WINDOW_RESIZABLE = true,
+    });
     raylib.InitWindow(800, 400, "window");
     defer raylib.CloseWindow();
     raylib.SetTargetFPS(60);
 
     const camera = try Cam.Camera(allocator, .{
         .name = "HD USB Camera: HD USB Camera",
-        .fourcc = Cam.fourcc("MJPG"),
-        .dimensions = .{1280, 720, 100},
+        .fourcc = Cam.fourcc("YYUV"),
+        .dimensions = .{1280, 720, 30},
         .props = &.{} 
     });
     defer camera.deinit();
@@ -65,6 +70,7 @@ pub fn main() !void {
     while (!raylib.WindowShouldClose()) {
         try audio_processor.update();
         try camera.updateFrame();
+        display.update();
         const segmented = try segger.process();
         raylib.BeginDrawing();
             raylib.ClearBackground(raylib.BLACK);

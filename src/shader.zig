@@ -44,7 +44,7 @@ fn location(self: Self, uniform: []const u8, comptime fmt: ?[]const u8) !i32 {
     if (loc != -1) {
         return loc;
     } else {
-        std.debug.print("shader with id: {} did not have uniform: {} with name: {s}\n", .{self.inner.id, loc, name});
+        std.log.info("shader with id: {} did not have uniform: {} with name: {s}\n", .{self.inner.id, loc, name});
         return error.NoSuchUniform;
     }
 }
@@ -82,7 +82,12 @@ fn sendValue(self: Self, uniform: []const u8, comptime T: type, val: T) !void {
 }
 
 pub fn sendTexture(self: Self, uniform: []const u8, tex: rl.Texture2D) !void {
-    rl.SetShaderValueTexture(self.inner, try self.location(uniform, null), tex);
+    rl.SetShaderValueTexture(
+        self.inner,
+        try self.location(uniform, null),
+        tex
+    );
+    rl.rlCheckErrors();
 }
 
 pub fn send(self: Self, comptime T: type, v: T, name: ?[]const u8) !void {

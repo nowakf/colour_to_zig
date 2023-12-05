@@ -212,6 +212,7 @@ pub fn isDone(self: Self) bool {
 
 pub fn finish(self: *Self) !Calibration {
     raylib.UnloadTexture(self.screen);
+    raylib.UnloadShader(self.display_shader.inner);
     return .{
         .alc = self.alc,
         .samples = try self.samples.toOwnedSlice(),

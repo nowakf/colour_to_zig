@@ -26,5 +26,7 @@ pub fn run(self: *Self, iterations: usize) void {
     self.final = (iterations-1) % 2;
 }
 pub fn getLast(self: Self) rl.Texture2D {
-    return self.bufs[self.final].texture;
+    const tex = self.bufs[self.final].texture;
+    rl.SetTextureFilter(tex, @intFromEnum(rl.TextureFilter.TEXTURE_FILTER_BILINEAR));
+    return tex;
 }
