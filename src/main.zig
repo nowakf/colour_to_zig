@@ -57,7 +57,7 @@ pub fn main() !void {
     defer calibration.deinit();
 
     var segger = try segmentation.new(
-        calibration.crop, 8, 
+        calibration.crop, 5, 
         .{ .colours_of_interest = calibration.samples }
     );
     defer segger.deinit();

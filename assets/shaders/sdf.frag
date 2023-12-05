@@ -47,7 +47,7 @@ float map(in vec3 p) {
 vec3 calc_normal(in vec3 pos) {
 	//change this to something robust:
     vec2 e = vec2(1.0,-1.0)*0.5773;
-    const float eps = 0.009;
+    const float eps = 0.01;
     return normalize(   e.xyy*map( pos + e.xyy*eps ) + 
 		  	e.yyx*map( pos + e.yyx*eps ) + 
 		  	e.yxy*map( pos + e.yxy*eps ) + 
@@ -74,8 +74,8 @@ vec3 ray_march(in vec3 ro, in vec3 rd) {
 }
 
 vec3 albedo(vec3 pos) {
-	vec3 warp = noise(pos.xy) * 0.01;
-	return texture(noise0, (pos.xy + warp.xy)* 0.01).rgb;
+	vec3 warp = noise(pos.xy) * 0.1;
+	return texture(noise0, (pos.xy + warp.xy)*(pos.z+0.1)).rgb;
 }
 
 float smoothness(vec3 pos) {
@@ -114,7 +114,8 @@ void main() {
 	vec3 col_a = diffuse(n) * albedo(hit) + specular(rd, n) * smoothness(hit);
 	
 	vec3 ref = reflect(rd, n);
-	vec3 bounce = ray_march(hit+ref*0.01, ref+noise(p)*(1.0-smoothness(hit)));
+	vec3 bounce = ray_march(hit+ref*0.01, 
+		ref + noise(p) * (1.0-smoothness(hit)));
 	vec3 bn = calc_normal(bounce);
 	float is_sky = ceil(length(bounce/SKY+0.5));
 	vec3 col_b =  mix(
