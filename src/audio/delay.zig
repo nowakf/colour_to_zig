@@ -3,7 +3,7 @@ const Random = std.rand.Random;
 
 const LPF = @import("lpf.zig").LPF;
 
-const conf = @import("config.zig");
+const conf = @import("../config.zig");
 
 pub const Delay = struct {
     min_del_time: usize,

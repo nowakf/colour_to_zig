@@ -10,7 +10,7 @@ const Delay = @import("delay.zig").Delay;
 const Schroeder = @import("schroeder.zig").Schroeder;
 const Synth = @import("synth.zig").Synth;
 
-const conf = @import("config.zig");
+const conf = @import("../config.zig");
 
 var synth: Synth = undefined;
 var delay_a: Delay = undefined;

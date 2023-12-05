@@ -1,7 +1,7 @@
 const std = @import("std");
 const math = std.math;
 
-const conf = @import("config.zig");
+const conf = @import("../config.zig");
 
 pub const LPF = struct {
     freq: f32,

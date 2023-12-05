@@ -2,7 +2,7 @@ const std = @import("std");
 const math = std.math;
 const Random = std.rand.Random;
 
-const conf = @import("config.zig");
+const conf = @import("../config.zig");
 
 pub const Synth = struct {
     voices: [conf.N_VOICES]?Voice,

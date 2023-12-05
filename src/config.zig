@@ -1,3 +1,14 @@
+const raylib = @import("raylib");
+const KeyboardKey = raylib.KeyboardKey;
+
+// **** KEYS ****
+
+pub const KEY_CALIB_RESET = KeyboardKey.KEY_SPACE;
+pub const KEY_CALIB_DONE = KeyboardKey.KEY_ENTER;
+pub const KEY_CALIB_DELETE = KeyboardKey.KEY_BACKSPACE;
+
+// **** AUDIO ****
+
 // GLOBAL
 pub const SR = 44100;
 
