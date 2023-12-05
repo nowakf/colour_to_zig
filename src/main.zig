@@ -1,10 +1,9 @@
-
 const builtin = @import("builtin");
 const std = @import("std");
 const File = std.fs.File;
 
 const ArgParser = @import("argparse.zig").ArgParser;
-const AudioProcessor = @import("audio.zig").AudioProcessor;
+const AudioProcessor = @import("audio/processor.zig").AudioProcessor;
 const Cam = @import("camera.zig");
 const img = @import("img.zig");
 const moore = @import("moore.zig");
@@ -34,43 +33,39 @@ pub fn main() !void {
         std.debug.print("leak detected!\n", .{});
     };
 
+    var prng = std.rand.DefaultPrng.init(0);
+    var rand = prng.random();
+
     raylib.SetTraceLogLevel(4);
 
     raylib.InitWindow(800, 400, "window");
     defer raylib.CloseWindow();
     raylib.SetTargetFPS(60);
 
-    const camera = try Cam.Camera(allocator, .{
-        .name = "HD USB Camera: HD USB Camera",
-        .fourcc = Cam.fourcc("MJPG"),
-        .dimensions = .{1280, 720, 100},
-        .props = &.{} 
-    });
+    const camera = try Cam.Camera(allocator, .{ .name = "HD USB Camera: HD USB Camera", .fourcc = Cam.fourcc("MJPG"), .dimensions = .{ 1280, 720, 100 }, .props = &.{} });
 
     const calibration = try calibrate(allocator, camera);
+
     defer calibration.deinit();
 
-    var segger = try segmentation.new(
-        calibration.crop, 8, 
-        .{ .colours_of_interest = calibration.samples }
-    );
+    var segger = try segmentation.new(calibration.crop, 8, .{ .colours_of_interest = calibration.samples });
     defer segger.deinit();
 
-    var audio_processor = AudioProcessor.init();
-    defer audio_processor.deinit();
+    var audio_processor = try AudioProcessor.init(allocator, &rand, &camera);
     audio_processor.play();
+    // TODO: Deinit audio processor!
 
     var display = Display.new();
 
     while (!raylib.WindowShouldClose()) {
-        try audio_processor.update();
         try camera.updateFrame();
+        audio_processor.update();
         raylib.BeginDrawing();
-            raylib.ClearBackground(raylib.BLACK);
-            const segmented = try segger.process();
-            try segger.debugDraw();
-            display.draw(segmented);
-            raylib.DrawFPS(10,10);
+        raylib.ClearBackground(raylib.BLACK);
+        const segmented = try segger.process();
+        try segger.debugDraw();
+        display.draw(segmented);
+        raylib.DrawFPS(10, 10);
         raylib.EndDrawing();
     }
 }

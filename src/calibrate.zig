@@ -6,6 +6,8 @@ const Cam = @import("camera.zig");
 const Shader = @import("shader.zig");
 const CropBuf = @import("crop_buf.zig");
 
+const conf = @import("config.zig");
+
 pub const Calibration = struct {
     const Calib = @This();
     alc: std.mem.Allocator,
@@ -32,11 +34,11 @@ input_state: union(enum) {
     RectDone: ?[2]raylib.Vector2,
     PointSelect: void,
     Done: void,
-} = .{.RectSelect = null },
+} = .{ .RectSelect = null },
 
 pub fn new(alc: std.mem.Allocator, camera: Cam) !Self {
     try camera.updateFrame(); //to work around undefined behaviour in openpnp
-    const img = raylib.Image {
+    const img = raylib.Image{
         .data = camera.buf.ptr,
         .width = @intCast(camera.info.width),
         .height = @intCast(camera.info.height),
@@ -52,43 +54,43 @@ pub fn new(alc: std.mem.Allocator, camera: Cam) !Self {
             "assets/shaders/vertex.vert",
             "assets/shaders/calibrate.frag",
         ),
-        .crop = try CropBuf.new(alc, camera.buf, .{.x=0, .y=0, .w=@intCast(img.width), .h=@intCast(img.height)}),
+        .crop = try CropBuf.new(alc, camera.buf, .{ .x = 0, .y = 0, .w = @intCast(img.width), .h = @intCast(img.height) }),
         .samples = std.ArrayList([3]f32).init(alc),
     };
 }
 fn colour_at_pt(self: Self, pt: raylib.Vector2, kernel: u32) raylib.Vector4 {
-    const w : u32 = self.crop.dst_rect.w;
-    const sw : f32 = @floatFromInt(raylib.GetScreenWidth());
-    const sh : f32 = @floatFromInt(raylib.GetScreenHeight());
-    const bw : f32 = @floatFromInt(self.crop.dst_rect.w);
-    const bh : f32 = @floatFromInt(self.crop.dst_rect.h);
-    var sum : struct{r: u32=0, g: u32=0, b: u32=0} = .{};
-    const mx : u32 = @intFromFloat(pt.x / sw * bw);
-    const my : u32 = @intFromFloat(pt.y / sh * bh);
+    const w: u32 = self.crop.dst_rect.w;
+    const sw: f32 = @floatFromInt(raylib.GetScreenWidth());
+    const sh: f32 = @floatFromInt(raylib.GetScreenHeight());
+    const bw: f32 = @floatFromInt(self.crop.dst_rect.w);
+    const bh: f32 = @floatFromInt(self.crop.dst_rect.h);
+    var sum: struct { r: u32 = 0, g: u32 = 0, b: u32 = 0 } = .{};
+    const mx: u32 = @intFromFloat(pt.x / sw * bw);
+    const my: u32 = @intFromFloat(pt.y / sh * bh);
     for (0..kernel) |y| {
         for (0..kernel) |x| {
-            const i = ((y+my) * w + (x+mx)) * 3;
-            sum.r += self.crop.buf[(i+0) % self.crop.buf.len];
-            sum.g += self.crop.buf[(i+1) % self.crop.buf.len];
-            sum.b += self.crop.buf[(i+2) % self.crop.buf.len];
+            const i = ((y + my) * w + (x + mx)) * 3;
+            sum.r += self.crop.buf[(i + 0) % self.crop.buf.len];
+            sum.g += self.crop.buf[(i + 1) % self.crop.buf.len];
+            sum.b += self.crop.buf[(i + 2) % self.crop.buf.len];
         }
     }
-    const samples = kernel*kernel;
+    const samples = kernel * kernel;
     return .{
-        .x = @as(f32, @floatFromInt(sum.r/samples))/255,
-        .y = @as(f32, @floatFromInt(sum.g/samples))/255,
-        .z = @as(f32, @floatFromInt(sum.b/samples))/255,
+        .x = @as(f32, @floatFromInt(sum.r / samples)) / 255,
+        .y = @as(f32, @floatFromInt(sum.g / samples)) / 255,
+        .z = @as(f32, @floatFromInt(sum.b / samples)) / 255,
         .w = 1.0,
     };
 }
 
 const cross = [4]raylib.Vector2{
-    .{.x=-5, .y=0}, .{.x=5,  .y=0},
-    .{.x=0,  .y=-5}, .{.x=0,  .y=5},
+    .{ .x = -5, .y = 0 }, .{ .x = 5, .y = 0 },
+    .{ .x = 0, .y = -5 }, .{ .x = 0, .y = 5 },
 };
 
 //TODO: Make backup file in case you want to restore without recalibrating
-//TODO: Change so you can select a range of colours? 
+//TODO: Change so you can select a range of colours?
 //TODO: Add more feedback while calibrating: show how the image will be segmented as colours are picked
 pub fn update(self: *Self) !void {
     try self.cam.updateFrame();
@@ -98,31 +100,28 @@ pub fn update(self: *Self) !void {
     const mpos = raylib.GetMousePosition();
     const mcolour = self.colour_at_pt(mpos, 3);
     self.display_shader.begin();
-        try self.samples.append(.{mcolour.x, mcolour.y, mcolour.z});
-        try self.display_shader.send([][3]f32, self.samples.items, "colours");
-        try self.display_shader.send(f32, self.brightness_margin_width, "brightness_margin_width");
-        try self.display_shader.send(f32, self.colour_cone_width, "colour_cone_width");
-        _ = self.samples.pop();
+    try self.samples.append(.{ mcolour.x, mcolour.y, mcolour.z });
+    try self.display_shader.send([][3]f32, self.samples.items, "colours");
+    try self.display_shader.send(f32, self.brightness_margin_width, "brightness_margin_width");
+    try self.display_shader.send(f32, self.colour_cone_width, "colour_cone_width");
+    _ = self.samples.pop();
     self.display_shader.end();
 
     switch (self.input_state) {
         .RectSelect => |origin| {
-            if (raylib.IsKeyReleased(raylib.KeyboardKey.KEY_SPACE)) {
-                    self.input_state = .{.RectDone = null };
+            if (raylib.IsKeyReleased(conf.KEY_CALIB_RESET)) {
+                self.input_state = .{ .RectDone = null };
             }
-            if (raylib.IsKeyReleased(raylib.KeyboardKey.KEY_ENTER)) {
-                    self.input_state = .PointSelect;
+            if (raylib.IsKeyReleased(conf.KEY_CALIB_DONE)) {
+                self.input_state = .PointSelect;
             }
             if (origin) |pt| {
                 if (raylib.IsMouseButtonReleased(raylib.MouseButton.MOUSE_BUTTON_LEFT)) {
-                    self.input_state = .{.RectDone = .{
-                        pt,
-                        mpos
-                    }};
+                    self.input_state = .{ .RectDone = .{ pt, mpos } };
                 }
             } else {
                 if (raylib.IsMouseButtonReleased(raylib.MouseButton.MOUSE_BUTTON_LEFT)) {
-                    self.input_state = .{.RectSelect=mpos};
+                    self.input_state = .{ .RectSelect = mpos };
                 }
             }
         },
@@ -132,35 +131,31 @@ pub fn update(self: *Self) !void {
                     raylib.GetScreenWidth(),
                     raylib.GetScreenHeight(),
                     pts[0],
-                    pts[1]
+                    pts[1],
                 );
-                self.crop.setCrop(
-                    rect
-                ) catch |err| {
-                    std.log.err("{any} invalid: {any}\n window is {any}", .{rect, err, self.crop.src_rect});
+                self.crop.setCrop(rect) catch |err| {
+                    std.log.err("{any} invalid: {any}\n window is {any}", .{ rect, err, self.crop.src_rect });
                 };
             } else {
                 try self.crop.setCrop(self.crop.src_rect);
             }
-            self.input_state = .{.RectSelect = null};
-        }, 
+            self.input_state = .{ .RectSelect = null };
+        },
         .PointSelect => {
             if (raylib.IsMouseButtonReleased(raylib.MouseButton.MOUSE_BUTTON_LEFT)) {
                 const colour = self.colour_at_pt(mpos, 3);
-                std.debug.print("collected {}, {}, {}, at mpoint {} {}\n", .{colour.x, colour.y, colour.z, mpos.x, mpos.y});
-                try self.samples.append(.{colour.x, colour.y, colour.z});
-            } else if (raylib.IsKeyReleased(raylib.KeyboardKey.KEY_BACKSPACE)) {
+                std.debug.print("collected {}, {}, {}, at mpoint {} {}\n", .{ colour.x, colour.y, colour.z, mpos.x, mpos.y });
+                try self.samples.append(.{ colour.x, colour.y, colour.z });
+            } else if (raylib.IsKeyReleased(conf.KEY_CALIB_DELETE)) {
                 const col = self.samples.popOrNull();
                 std.debug.print("deleted last colour entry: {any}\n", .{col});
-            } else if (raylib.IsKeyReleased(raylib.KeyboardKey.KEY_ENTER)) {
+            } else if (raylib.IsKeyReleased(conf.KEY_CALIB_DONE)) {
                 std.debug.print("we're done here\n", .{});
                 self.input_state = .Done;
             }
-            },
-        .Done => {
         },
+        .Done => {},
     }
-
 }
 
 pub fn draw(self: *Self) !void {
@@ -169,14 +164,14 @@ pub fn draw(self: *Self) !void {
     const h = raylib.GetScreenHeight();
     const mcolour = self.colour_at_pt(mpos, 3);
     self.display_shader.begin();
-        raylib.DrawTexturePro(
-            self.screen,
-            self.crop.dst_rect.to_rl_rect(),
-            .{.x=0, .y=0, .width=@floatFromInt(w), .height=@floatFromInt(h)},
-            .{.x=0, .y=0},
-            0,
-            raylib.WHITE
-        );
+    raylib.DrawTexturePro(
+        self.screen,
+        self.crop.dst_rect.to_rl_rect(),
+        .{ .x = 0, .y = 0, .width = @floatFromInt(w), .height = @floatFromInt(h) },
+        .{ .x = 0, .y = 0 },
+        0,
+        raylib.WHITE,
+    );
     self.display_shader.end();
     switch (self.input_state) {
         .RectSelect => |origin| {
@@ -196,10 +191,8 @@ pub fn draw(self: *Self) !void {
             raylib.DrawText("in point select mode: backspace to undo, enter to accept", 0, 0, 12, raylib.WHITE);
             raylib.DrawRectangle(0, 0, 30, 30, raylib.ColorFromNormalized(mcolour));
         },
-        else => {
-        }
+        else => {},
     }
-
 }
 
 pub fn isDone(self: Self) bool {
@@ -214,4 +207,3 @@ pub fn finish(self: *Self) !Calibration {
         .crop = self.crop,
     };
 }
-
