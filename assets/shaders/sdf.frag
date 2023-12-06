@@ -6,9 +6,15 @@ uniform float aspect;
 
 out vec4 finalColor;
 
-const float CLEAR_COLOUR = 0.2;
-const float SKY = 100000000000.0;
-const vec3 LIGHT_DIR = vec3(-0.577);
+const float CLEAR_COLOUR = 0.0;
+const float SKY = 1000000000.0;
+const vec3 LIGHT_DIR = vec3(0.5733);
+const float EPS = 0.001;
+const float MIN_HIT_DIST = EPS;
+const float NORM_STEP = 0.001;
+const float CLEARANCE = 0.1;
+const int NUM_OF_STEPS = 32;
+const float MAX_TRACE_DIST = 8.0;
 
 vec3 noise(vec2 co){
     return texture(noise0, co).rgb;
@@ -21,7 +27,7 @@ float sphere(in vec3 p, in vec3 c, float r) {
 
 float height(vec2 p) {
 	vec4 tex = texture(texture0, p.xy+0.5);
-	return length(tex.rgb);
+	return length(tex.rgb)/3.0;
 }
 
 float plane(vec3 p, vec4 n) {
@@ -45,19 +51,14 @@ float map(in vec3 p) {
 }
 
 vec3 calc_normal(in vec3 pos) {
-	//change this to something robust:
     vec2 e = vec2(1.0,-1.0)*0.5773;
-    const float eps = 0.01;
-    return normalize(   e.xyy*map( pos + e.xyy*eps ) + 
-		  	e.yyx*map( pos + e.yyx*eps ) + 
-		  	e.yxy*map( pos + e.yxy*eps ) + 
-		  	e.xxx*map( pos + e.xxx*eps ) );
+    return normalize(   e.xyy*map( pos + e.xyy*NORM_STEP) + 
+		  	e.yyx*map( pos + e.yyx*NORM_STEP) + 
+		  	e.yxy*map( pos + e.yxy*NORM_STEP) + 
+		  	e.xxx*map( pos + e.xxx*NORM_STEP) );
 }
 vec3 ray_march(in vec3 ro, in vec3 rd) {
 	float total_dist_traveled = 0.0;
-	const int NUM_OF_STEPS = 32;
-	const float MIN_HIT_DIST = 0.001;
-	const float MAX_TRACE_DIST = 8.0;
 
 	for (int i = 0; i < NUM_OF_STEPS; ++i) {
 		vec3 cur_pos = ro + total_dist_traveled * rd;
@@ -68,26 +69,28 @@ vec3 ray_march(in vec3 ro, in vec3 rd) {
 		if (total_dist_traveled > MAX_TRACE_DIST) {
 			break;
 		}
-		total_dist_traveled += max(0.01, dist_to_closest);
+		total_dist_traveled += max(EPS, dist_to_closest);
 	}
 	return vec3(SKY);
 }
 
 vec3 albedo(vec3 pos) {
-	vec3 warp = noise(pos.xy) * 0.1;
-	return texture(noise0, (pos.xy + warp.xy)*(pos.z+0.1)).rgb;
+	vec3 warp = noise(pos.xy) * 0.01;
+	vec2 uv = pos.xy + warp.xy;
+	float scale = pow(0.99-abs(pos.z*5.),5.);
+	return texture(noise0, uv * scale).rgb;
 }
 
 float smoothness(vec3 pos) {
-	return mix(0., 1., 1.0 - sign(sphere(pos, vec3(0., 0., -0.1), 0.1)));
+	return clamp(1.0-sign(sphere(pos, vec3(0., 0., -0.1), 0.1)), 0., 1.);
 }
 
 vec3 sky(vec3 dir) {
-	return vec3(0.9, 0.9, 1.0);
+	return vec3(0.8, 0.9, 1.0);
 }
 
 float specular(in vec3 rd, in vec3 n) {
-	return pow(max(CLEAR_COLOUR, dot(reflect(LIGHT_DIR, n), rd)), 3.0);
+	return pow(max(CLEAR_COLOUR, dot(reflect(LIGHT_DIR, n), rd)), 2.0);
 }
 
 float diffuse(in vec3 n) {
@@ -106,23 +109,27 @@ void main() {
 	vec3 ww = normalize(ta-ro);
 	vec3 uu = normalize(cross(ww, vec3(0.,1.,0.)));
 	vec3 vv = normalize(cross(uu, ww));
-	//uv aspect ratio needs to be fixed
 	vec3 rd =  normalize(p.x *uu + p.y*vv + 1.5 * ww);
 
 	vec3 hit = ray_march(ro, rd);
 	vec3 n = calc_normal(hit);
 	vec3 col_a = diffuse(n) * albedo(hit) + specular(rd, n) * smoothness(hit);
+
+	vec3 shadow = ray_march(hit, LIGHT_DIR);
+
+	col_a *= 1.0 - floor(length(shadow/SKY+EPS));
 	
 	vec3 ref = reflect(rd, n);
-	vec3 bounce = ray_march(hit+ref*0.01, 
-		ref + noise(p) * (1.0-smoothness(hit)));
+	vec3 bounce = ray_march(hit+ref*CLEARANCE, 
+		ref + noise(p) * 0.25 * (1.0-smoothness(hit)));
 	vec3 bn = calc_normal(bounce);
 	float is_sky = ceil(length(bounce/SKY+0.5));
 	vec3 col_b =  mix(
-		diffuse(bn) * albedo(bounce) + specular(ref, bn) * smoothness(bounce),
+		diffuse(bn) * albedo(bounce) 
+		+ specular(ref, bn) * smoothness(bounce),
 		sky(bn),
 		is_sky
 	);
 
-	finalColor = vec4((col_a * 0.75 + col_b * 0.25), 1.0);
+	finalColor = vec4((col_a * .75 + col_b * 0.25), 1.0);
 }

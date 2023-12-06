@@ -14,7 +14,7 @@ const Display = @import("display.zig");
 const raylib = @import("raylib");
 
 pub const std_options = struct {
-    pub const log_level = .info;
+    pub const log_level = .err;
 };
 
 pub fn calibrate(alc: std.mem.Allocator, camera: Cam) !calibrator.Calibration {
