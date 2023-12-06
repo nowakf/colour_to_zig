@@ -29,8 +29,9 @@ float rgb2value(vec3 c) {
 float characterize(vec3 col) {
 	float best_fit = colour_cone_width;
 	float o = -1.;
+	float tmp = 0.;
 	for (int i=1; i<colours_of_interest_cnt; i++) {
-		float tmp = distance(normalize(col), normalize(colours_of_interest[i-1]));
+		tmp = distance(normalize(col), normalize(colours_of_interest[i-1]));
 		if (tmp <= best_fit) {
 			o = float(i) / float(colours_of_interest_cnt);
 			best_fit = tmp;
@@ -67,6 +68,6 @@ void main() {
 		//clear colour?
 		finalColor = vec4(vec3(0.0), 1.0);
 	} else {
-		finalColor = vec4(vec3(char),1.0);
+		finalColor = vec4(rgba.rgb, char);
 	}
 }

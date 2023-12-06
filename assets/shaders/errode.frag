@@ -31,53 +31,34 @@ const vec2 cross[] = vec2[cross_cnt] (
 const int cnt = nbs_cnt;
 const vec2 kernel[] = nbs;
 
-vec3 average(vec2 pos) {
-	vec3 rgb = texture(texture0, pos).rgb;
+float average(vec2 pos) {
+	float a = texture(texture0, pos).a;
 	vec2 resolution = textureSize(texture0, 0);
 	for (int i=0; i<cnt; i++) {
-		rgb += texture(
+		a += texture(
 			texture0, 
-			fragTexCoord +
+			pos +
 			kernel[i] / resolution
-		).rgb;
+		).a;
 	}
-	return rgb / float(cnt + 1);
+	return a / float(cnt+1);
 }
 
 float closest(vec2 pos, float ref) {
 	vec2 resolution = textureSize(texture0, 0);
-	float o = texture(texture0, pos).r;
+	float o = texture(texture0, pos).a;
 	float min = abs(ref-o);
 	for (int i=0; i<cnt; i++) {
 		float tmp = texture(
 			texture0,
 			pos + kernel[i] / resolution
-		).r;
+		).a;
 		if (abs(ref-tmp) < min) {
-			min = abs(ref-tmp);;
+			min = abs(ref-tmp);
 			o = tmp;
 		}
 	}
 	return o;
-}
-
-vec3 closest(vec2 pos, vec3 ref) {
-	vec2 resolution = textureSize(texture0, 0);
-	vec3 rgb = texture(texture0, pos).rgb;
-	float min_dist = distance(normalize(rgb), normalize(ref));
-	for (int i=0; i<cnt; i++) {
-		vec3 tmp = texture(
-			texture0, 
-			fragTexCoord +
-			kernel[i] / resolution
-		).rgb;
-		float tmp_dist = distance(normalize(tmp), normalize(ref));
-		if (tmp_dist < min_dist) {
-			min_dist = tmp_dist;
-			rgb = tmp;
-		}
-	}
-	return rgb;
 }
 
 float bw_errode() {
@@ -96,6 +77,7 @@ float bw_errode() {
 }
 
 void main() {
-	float avg = average(fragTexCoord).r;
-	finalColor = vec4(vec3(closest(fragTexCoord, avg)), 1.0);
+	vec4 col = texture(texture0, fragTexCoord);
+	float avg = average(fragTexCoord);
+	finalColor = vec4(col.rgb, closest(fragTexCoord, avg));
 }

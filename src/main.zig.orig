@@ -3,13 +3,32 @@ const std = @import("std");
 const File = std.fs.File;
 
 const ArgParser = @import("argparse.zig").ArgParser;
-const AudioProcessor = @import("audio.zig").AudioProcessor;
-const cam = @import("camera.zig");
+const AudioProcessor = @import("audio/processor.zig").AudioProcessor;
+const Cam = @import("camera.zig");
 const img = @import("img.zig");
 const moore = @import("moore.zig");
 const segmentation = @import("segmentation.zig");
+const calibrator = @import("calibrate.zig");
+const Display = @import("display.zig");
 
 const raylib = @import("raylib");
+
+pub const std_options = struct {
+    pub const log_level = .err;
+};
+
+pub fn calibrate(alc: std.mem.Allocator, camera: Cam) !calibrator.Calibration {
+    var calib = try calibrator.new(alc, camera);
+    //callibration loop:
+    while (!calib.isDone() and !raylib.WindowShouldClose()) {
+        raylib.BeginDrawing();
+        defer raylib.EndDrawing();
+        raylib.ClearBackground(raylib.BLACK);
+        try calib.update();
+        try calib.draw();
+    }
+    return calib.finish();
+}
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -18,32 +37,72 @@ pub fn main() !void {
         std.debug.print("leak detected!\n", .{});
     };
 
+<<<<<<< HEAD
+    var prng = std.rand.DefaultPrng.init(0);
+    var rand = prng.random();
+
+    raylib.SetTraceLogLevel(4);
+
+=======
+    //raylib.SetTraceLogLevel(4);
+    raylib.SetConfigFlags(.{
+        .FLAG_WINDOW_RESIZABLE = true,
+    });
+>>>>>>> sdf
     raylib.InitWindow(800, 400, "window");
     defer raylib.CloseWindow();
     raylib.SetTargetFPS(60);
 
 <<<<<<< HEAD
-    var segger = try segmentation.new(alc, 8);
+    const camera = try Cam.Camera(allocator, .{ .name = "HD USB Camera: HD USB Camera", .fourcc = Cam.fourcc("MJPG"), .dimensions = .{ 1280, 720, 100 }, .props = &.{} });
 =======
-    var segger = try segmentation.new(allocator, 16);
->>>>>>> main
+    const camera = try Cam.Camera(allocator, .{
+        .name = "HD USB Camera: HD USB Camera",
+        .fourcc = Cam.fourcc("YYUV"),
+        .dimensions = .{1280, 720, 30},
+        .props = &.{} 
+    });
+    defer camera.deinit();
+>>>>>>> sdf
+
+    const calibration = try calibrate(allocator, camera);
+
+    defer calibration.deinit();
+
+<<<<<<< HEAD
+    var segger = try segmentation.new(calibration.crop, 8, .{ .colours_of_interest = calibration.samples });
+=======
+    var segger = try segmentation.new(
+        calibration.crop, 5, 
+        .{ .colours_of_interest = calibration.samples }
+    );
+>>>>>>> sdf
     defer segger.deinit();
 
-    var audio_processor = AudioProcessor.init();
-    defer audio_processor.deinit();
+    var audio_processor = try AudioProcessor.init(allocator, &rand, &camera);
     audio_processor.play();
+    // TODO: Deinit audio processor!
 
+    var display = Display.new();
     while (!raylib.WindowShouldClose()) {
-        try audio_processor.update();
-
+        try camera.updateFrame();
+<<<<<<< HEAD
+        audio_processor.update();
         raylib.BeginDrawing();
-        defer raylib.EndDrawing();
         raylib.ClearBackground(raylib.BLACK);
-
-        try segger.update(.{});
-
-        segger.draw();
-
+        const segmented = try segger.process();
+        try segger.debugDraw();
+        display.draw(segmented);
         raylib.DrawFPS(10, 10);
+=======
+        display.update();
+        const segmented = try segger.process();
+        raylib.BeginDrawing();
+            raylib.ClearBackground(raylib.BLACK);
+            //try segger.debugDraw();
+            display.draw(segmented);
+            raylib.DrawFPS(10,10);
+>>>>>>> sdf
+        raylib.EndDrawing();
     }
 }

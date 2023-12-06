@@ -149,7 +149,18 @@ pub fn update(self: *Self) !void {
             } else if (raylib.IsKeyReleased(conf.KEY_CALIB_DELETE)) {
                 const col = self.samples.popOrNull();
                 std.debug.print("deleted last colour entry: {any}\n", .{col});
-            } else if (raylib.IsKeyReleased(conf.KEY_CALIB_DONE)) {
+            } else if (raylib.IsKeyReleased(raylib.KeyboardKey.KEY_UP)) {
+                self.colour_cone_width += 0.01;
+            } else if (raylib.IsKeyReleased(raylib.KeyboardKey.KEY_DOWN)) {
+                self.colour_cone_width -= 0.01;
+            } else if (raylib.IsKeyReleased(raylib.KeyboardKey.KEY_ENTER)) {
+                std.debug.print("we're done here\n", .{});
+                self.input_state = .Done;
+            } else if (raylib.IsKeyReleased(raylib.KeyboardKey.KEY_UP)) {
+                self.colour_cone_width += 0.01;
+            } else if (raylib.IsKeyReleased(raylib.KeyboardKey.KEY_DOWN)) {
+                self.colour_cone_width -= 0.01;
+            } else if (raylib.IsKeyReleased(raylib.KeyboardKey.KEY_ENTER)) {
                 std.debug.print("we're done here\n", .{});
                 self.input_state = .Done;
             }
@@ -201,6 +212,7 @@ pub fn isDone(self: Self) bool {
 
 pub fn finish(self: *Self) !Calibration {
     raylib.UnloadTexture(self.screen);
+    raylib.UnloadShader(self.display_shader.inner);
     return .{
         .alc = self.alc,
         .samples = try self.samples.toOwnedSlice(),
