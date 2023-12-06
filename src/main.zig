@@ -14,7 +14,7 @@ const Display = @import("display.zig");
 const raylib = @import("raylib");
 
 pub const std_options = struct {
-    pub const log_level = .err;
+    pub const log_level = .info;
 };
 
 pub fn calibrate(alc: std.mem.Allocator, camera: Cam) !calibrator.Calibration {
@@ -48,8 +48,8 @@ pub fn main() !void {
     raylib.SetTargetFPS(60);
     const camera = try Cam.Camera(allocator, .{
         .name = "HD USB Camera: HD USB Camera",
-        .fourcc = Cam.fourcc("YYUV"),
-        .dimensions = .{1280, 720, 30},
+        .fourcc = Cam.fourcc("MJPG"),
+        .dimensions = .{1280, 720, 60},
         .props = &.{} 
     });
     defer camera.deinit();
@@ -74,8 +74,7 @@ pub fn main() !void {
         const segmented = try segger.process();
         raylib.BeginDrawing();
             raylib.ClearBackground(raylib.BLACK);
-            audio_processor.update();
-            //try segger.debugDraw();
+//            audio_processor.update();
             display.draw(segmented);
             raylib.DrawFPS(10,10);
         raylib.EndDrawing();

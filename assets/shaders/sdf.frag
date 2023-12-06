@@ -2,14 +2,15 @@
 in vec2 fragTexCoord;
 uniform sampler2D texture0;
 uniform sampler2D noise0;
+uniform sampler2D noise1;
 uniform sampler2D swatch0;
 uniform float aspect;
 
 out vec4 finalColor;
-
+const float HEIGHT_FACTOR = 4.5;
 const float CLEAR_COLOUR = 0.0;
 const float SKY = 1000000000.0;
-const vec3 LIGHT_DIR = vec3(0.5733);
+const vec3 LIGHT_DIR = normalize(vec3(0.577));
 const float EPS = 0.001;
 const float MIN_HIT_DIST = EPS;
 const float NORM_STEP = 0.001;
@@ -32,12 +33,12 @@ float height(vec2 p) {
 }
 
 float plane(vec3 p) {
-	return p.z + height(p.xy)*2.0;
+	return p.z + height(p.xy) * HEIGHT_FACTOR;
 }
 
 float map(in vec3 p) {
 	return min(
-		sphere(p, vec3(0., 0., -0.1), 0.1),
+		sphere(p, vec3(0., 0., -0.1), 0.09),
 		plane(p)
 	);
 }
@@ -67,15 +68,24 @@ vec3 ray_march(in vec3 ro, in vec3 rd) {
 }
 
 float smoothness(vec3 pos) {
-	return 1.0 - max(0.0, sign(sphere(pos, vec3(0., 0., -0.1), 0.1) - MIN_HIT_DIST));
+	return 1.0 - max(0.0, sign(sphere(pos, vec3(0., 0., -0.1), 0.09) - MIN_HIT_DIST));
 }
 
 vec3 albedo(vec3 pos) {
-	return noise(pos.xy*0.01);
+	float scale = texture(noise1, pos.xy).r;
+	return mix(
+		vec3(0., 1., 1.),
+		vec3(1.0,0.,0.) * texture(swatch0, pos.xy*scale).rgb,
+		plane(pos) + 0.7
+	);
 }
 
 vec3 sky(vec3 dir) {
-	return vec3(0.8, 0.9, 1.0);
+	return mix(
+		vec3(0.2, 0.1, 0.1),
+		vec3(0.9, 0.9, 1.0),
+		dot(dir, LIGHT_DIR)*0.5+0.5
+	);
 }
 
 float specular(in vec3 rd, in vec3 n) {
@@ -102,11 +112,11 @@ void main() {
 
 	vec3 hit = ray_march(ro, rd);
 	vec3 n = calc_normal(hit);
-	vec3 col_a = diffuse(n) * albedo(hit) * (1.0-smoothness(hit)) + specular(rd, n) * smoothness(hit) * smoothness(hit);
+	vec3 col_a = diffuse(n) * albedo(hit) * (1.0-smoothness(hit)) + specular(rd, n) * smoothness(hit);
 
 	vec3 shadow = ray_march(hit, LIGHT_DIR);
 
-	col_a *= 1.0 - floor(length(shadow/SKY+EPS));
+	//col_a *= 1.0 - floor(length(shadow/SKY+EPS));
 	
 	vec3 ref = reflect(rd, n);
 	vec3 bounce = ray_march(
@@ -118,13 +128,12 @@ void main() {
 				)) /2.0)
 	);
 	vec3 bn = calc_normal(bounce);
-	float is_sky = ceil(length(bounce/SKY)-2.0);
+	float is_sky = ceil(length(bounce/vec3(SKY))-0.9);
 	vec3 col_b =  mix(
-		diffuse(bn) * albedo(bounce)
-		+ specular(ref, bn) * smoothness(bounce),
+		diffuse(bn) * albedo(bounce) + specular(ref, bn) * smoothness(bounce),
 		sky(bn),
 		is_sky
 	);
 
-	finalColor = vec4((col_a * .75 + col_b * 0.25), 1.0);
+	finalColor = vec4((col_a*0.75+col_b*0.25), 1.0);
 }

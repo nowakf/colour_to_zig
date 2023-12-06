@@ -11,17 +11,16 @@ const Self = @This();
 //seed_shader: Shader,
 //flood_shader: Shader,
 swatch: rl.Texture2D,
-noise: rl.Texture2D,
+blue_noise: rl.Texture2D,
+fbm_noise: rl.Texture2D,
 sdf_shader: Shader,
 
 pub fn new() Self {
     const this = .{
-        .noise = rl.LoadTexture("assets/textures/LDR_RGB1_0.png"),
-        .swatch = rl.LoadTexture("assets/textures/LDR_LLL1_0.png"),
+        .blue_noise = rl.LoadTexture("assets/textures/LDR_RGB1_0.png"),
+        .fbm_noise = rl.LoadTexture("assets/textures/fbm_noise.png"),
+        .swatch = rl.LoadTexture("assets/textures/hambach.png"),
         .sdf_shader = Shader.fromPaths("assets/shaders/vertex.vert", "assets/shaders/sdf.frag")
-    };
-    this.sdf_shader.sendTexture("noise0", this.noise) catch |err| {
-        std.log.info("{any}\n", .{err});
     };
     return this;
 }
@@ -38,7 +37,8 @@ pub fn draw(self: Self, tex: rl.Texture2D) void {
     const h : f32 = @floatFromInt(rl.GetScreenHeight());
     self.sdf_shader.send(f32, w/h, "aspect") catch |err| std.log.info("{any}\n", .{err});
     self.sdf_shader.begin();
-        self.sdf_shader.sendTexture("noise0", self.noise) catch |err| std.log.info("{any}\n", .{err});
+        self.sdf_shader.sendTexture("noise0", self.blue_noise) catch |err| std.log.info("{any}\n", .{err});
+        self.sdf_shader.sendTexture("noise1", self.fbm_noise) catch |err| std.log.info("{any}\n", .{err});
         self.sdf_shader.sendTexture("swatch0", self.swatch) catch |err| std.log.info("{any}\n", .{err});
         rl.DrawTexturePro(
              tex,
