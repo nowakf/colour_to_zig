@@ -2,6 +2,7 @@
 in vec2 fragTexCoord;
 uniform sampler2D texture0;
 uniform sampler2D noise0;
+uniform sampler2D swatch0;
 uniform float aspect;
 
 out vec4 finalColor;
@@ -30,23 +31,14 @@ float height(vec2 p) {
 	return length(tex.rgb)/3.0;
 }
 
-float plane(vec3 p, vec4 n) {
-	return dot(p,
-	n.xyz 
-	) + height(p.xy)*1.2 + n.w;
-	//p.xy is wrong, but it seems to work OK.
-	//probably should do some thinking about this to make it more robust
-}
-
-float plane2(vec3 p) {
-	return p.z + height(p.xy);
+float plane(vec3 p) {
+	return p.z + height(p.xy)*2.0;
 }
 
 float map(in vec3 p) {
 	return min(
 		sphere(p, vec3(0., 0., -0.1), 0.1),
-		//plane(p, normalize(vec4(0.,0.,0.5,0.)))
-		plane2(p)
+		plane(p)
 	);
 }
 
@@ -74,15 +66,12 @@ vec3 ray_march(in vec3 ro, in vec3 rd) {
 	return vec3(SKY);
 }
 
-vec3 albedo(vec3 pos) {
-	vec3 warp = noise(pos.xy) * 0.01;
-	vec2 uv = pos.xy + warp.xy;
-	float scale = pow(0.99-abs(pos.z*5.),5.);
-	return texture(noise0, uv * scale).rgb;
+float smoothness(vec3 pos) {
+	return 1.0 - max(0.0, sign(sphere(pos, vec3(0., 0., -0.1), 0.1) - MIN_HIT_DIST));
 }
 
-float smoothness(vec3 pos) {
-	return clamp(1.0-sign(sphere(pos, vec3(0., 0., -0.1), 0.1)), 0., 1.);
+vec3 albedo(vec3 pos) {
+	return noise(pos.xy*0.01);
 }
 
 vec3 sky(vec3 dir) {
@@ -113,19 +102,25 @@ void main() {
 
 	vec3 hit = ray_march(ro, rd);
 	vec3 n = calc_normal(hit);
-	vec3 col_a = diffuse(n) * albedo(hit) + specular(rd, n) * smoothness(hit);
+	vec3 col_a = diffuse(n) * albedo(hit) * (1.0-smoothness(hit)) + specular(rd, n) * smoothness(hit) * smoothness(hit);
 
 	vec3 shadow = ray_march(hit, LIGHT_DIR);
 
 	col_a *= 1.0 - floor(length(shadow/SKY+EPS));
 	
 	vec3 ref = reflect(rd, n);
-	vec3 bounce = ray_march(hit+ref*CLEARANCE, 
-		ref + noise(p) * 0.25 * (1.0-smoothness(hit)));
+	vec3 bounce = ray_march(
+			hit+ref*CLEARANCE, 
+			normalize((ref + 
+				mix(noise(p.xy),
+					ref,
+					smoothness(hit)
+				)) /2.0)
+	);
 	vec3 bn = calc_normal(bounce);
-	float is_sky = ceil(length(bounce/SKY+0.5));
+	float is_sky = ceil(length(bounce/SKY)-2.0);
 	vec3 col_b =  mix(
-		diffuse(bn) * albedo(bounce) 
+		diffuse(bn) * albedo(bounce)
 		+ specular(ref, bn) * smoothness(bounce),
 		sky(bn),
 		is_sky
