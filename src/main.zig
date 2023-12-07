@@ -74,7 +74,7 @@ pub fn main() !void {
         const segmented = try segger.process();
         raylib.BeginDrawing();
             raylib.ClearBackground(raylib.BLACK);
-//            audio_processor.update();
+            audio_processor.update();
             display.draw(segmented);
             raylib.DrawFPS(10,10);
         raylib.EndDrawing();

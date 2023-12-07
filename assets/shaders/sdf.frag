@@ -7,7 +7,8 @@ uniform sampler2D swatch0;
 uniform float aspect;
 
 out vec4 finalColor;
-const float HEIGHT_FACTOR = 4.5;
+const vec4 SPHERE_VALS = vec4(0.,-0.09,-0.1, 0.09);
+const float HEIGHT_FACTOR = 0.75;
 const float CLEAR_COLOUR = 0.0;
 const float SKY = 1000000000.0;
 const vec3 LIGHT_DIR = normalize(vec3(0.577));
@@ -38,7 +39,7 @@ float plane(vec3 p) {
 
 float map(in vec3 p) {
 	return min(
-		sphere(p, vec3(0., 0., -0.1), 0.09),
+		sphere(p, SPHERE_VALS.xyz, SPHERE_VALS.w),
 		plane(p)
 	);
 }
@@ -68,15 +69,17 @@ vec3 ray_march(in vec3 ro, in vec3 rd) {
 }
 
 float smoothness(vec3 pos) {
-	return 1.0 - max(0.0, sign(sphere(pos, vec3(0., 0., -0.1), 0.09) - MIN_HIT_DIST));
+	return 1.0 - max(0.0, sign(
+	sphere(pos, SPHERE_VALS.xyz, SPHERE_VALS.w) 
+	- MIN_HIT_DIST));
 }
 
 vec3 albedo(vec3 pos) {
 	float scale = texture(noise1, pos.xy).r;
 	return mix(
-		vec3(0., 1., 1.),
-		vec3(1.0,0.,0.) * texture(swatch0, pos.xy*scale).rgb,
-		plane(pos) + 0.7
+		texture(swatch0, vec2(0.5)+pos.xy).rgb,
+		texture(noise0, pos.xy/scale).rgb,
+		ceil(-plane(pos)+0.001)
 	);
 }
 
@@ -135,5 +138,5 @@ void main() {
 		is_sky
 	);
 
-	finalColor = vec4((col_a*0.75+col_b*0.25), 1.0);
+	finalColor = vec4((col_a*0.75+col_b*0.50), 1.0);
 }

@@ -29,6 +29,8 @@ pub fn update(self: *Self) void {
     if (rl.IsKeyReleased(rl.KeyboardKey.KEY_ENTER)) {
         rl.UnloadShader(self.sdf_shader.inner);
         self.sdf_shader = Shader.fromPaths("assets/shaders/vertex.vert", "assets/shaders/sdf.frag");
+        rl.UnloadTexture(self.swatch);
+        self.swatch = rl.LoadTexture("assets/textures/hambach.png");
     }
 }
 

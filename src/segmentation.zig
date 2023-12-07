@@ -11,7 +11,6 @@ const Shader = @import("shader.zig");
 const Self = @This();
 
 head: u32 = 0,
-texture: Texture3D,
 dummy: raylib.Texture2D,
 seg_shader: Shader,
 err_shader: Shader,
@@ -20,6 +19,7 @@ swap_buf: SwapBuf,
 params: SegmentationParams,
 
 pub fn new(image: CropBuf, depth: u32, opts: SegmentationParams) !Self {
+    _ = depth;
     const seg_shader = Shader.fromPaths(
         "assets/shaders/vertex.vert",
         "assets/shaders/segmentation.frag",
@@ -28,11 +28,6 @@ pub fn new(image: CropBuf, depth: u32, opts: SegmentationParams) !Self {
         "assets/shaders/vertex.vert",
         "assets/shaders/errode.frag",
     );
-    const tex3d = Texture3D.new(.{
-        .width =  @intCast(image.dst_rect.w),
-        .height = @intCast(image.dst_rect.h),
-        .depth = @intCast(depth),
-    });
 
     const swap_buf = .{
         .bufs = .{
@@ -41,10 +36,13 @@ pub fn new(image: CropBuf, depth: u32, opts: SegmentationParams) !Self {
         },
     };
 
-    tex3d.send(seg_shader.inner.id, "texture0");
-    try seg_shader.send(SegmentationParams, opts, null);
+    seg_shader.send(SegmentationParams, opts, null) catch |err| {
+        std.log.err("{any}", .{err});
+    };
+
     return .{
-        .texture = tex3d,
+        .seg_shader = seg_shader,
+        .err_shader = err_shader,
         .dummy = raylib.LoadTextureFromImage(.{
             .data = image.buf.ptr,
             .width = @intCast(image.dst_rect.w),
@@ -52,8 +50,6 @@ pub fn new(image: CropBuf, depth: u32, opts: SegmentationParams) !Self {
             .mipmaps = 1,
             .format = @intFromEnum(raylib.PixelFormat.PIXELFORMAT_UNCOMPRESSED_R8G8B8),
             }),
-        .seg_shader = seg_shader,
-        .err_shader = err_shader,
         .params = opts,
         .crop_buf = image,
         .swap_buf = swap_buf,
@@ -80,18 +76,13 @@ pub fn update_settings(self: *Self, params: SegmentationParams) !void {
 pub fn process(self: *Self) !raylib.Texture2D {
     self.crop_buf.update();
 
-    self.texture.set_frame(
-        self.head,
-        self.crop_buf.buf.ptr
-    );
-
     //try self.seg_shader.send(u32, self.head, "head");
 
     self.segment();
 
     self.errode();
 
-    self.head = (self.head + 1) % @as(u32, @intCast(self.texture.depth));
+    //self.head = (self.head + 1) % @as(u32, @intCast(self.texture.depth));
 
     return self.swap_buf.getLast();
 
@@ -99,7 +90,11 @@ pub fn process(self: *Self) !raylib.Texture2D {
 
 fn segment(self: *Self) void {
     self.seg_shader.begin();
-        self.swap_buf.setInitial(self.dummy);
+    raylib.UpdateTexture(self.dummy, self.crop_buf.buf.ptr);
+    self.seg_shader.sendTexture("texture0", self.dummy) catch |err| {
+        std.log.err("{any}\n", .{err});
+    };
+    self.swap_buf.setInitial(self.dummy);
     self.seg_shader.end();
 }
 
@@ -132,7 +127,7 @@ pub fn debugDraw(self: *Self) !void {
 }
 
 pub fn deinit(self: *Self) void {
-    self.texture.deinit();
+    _ = self;
     //free textures
 }
 
