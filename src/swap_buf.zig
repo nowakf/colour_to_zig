@@ -1,32 +1,26 @@
 const rl = @import("raylib");
+const std = @import("std");
+
+const Shader = @import("shader.zig");
 
 const Self = @This();
 
 bufs: [2]rl.RenderTexture2D,
-on_flip: ?*const fn(*Self) void = null,
-final: usize = 0,
+last_written: usize = 0,
 
-pub fn setInitial(self: *Self, tex: rl.Texture2D) void {
-    rl.BeginTextureMode(self.bufs[1]);
-        rl.DrawTexture(tex, 0, 0, rl.WHITE);
+
+pub fn draw(self: *Self, tex: rl.Texture2D) void {
+    _ = tex;
+    self.last_written = (self.last_written + 1) % 2;
+    rl.BeginTextureMode(self.bufs[self.last_written]);
+    //rl.DrawTexture(
+    //    tex,
+    //    0, 0,
+    //    rl.WHITE
+    //); //flips it, annoying!
     rl.EndTextureMode();
 }
 
-pub fn run(self: *Self, iterations: usize) void {
-    for (0..iterations) |i| {
-        if (self.on_flip) |cb| cb(self);
-        rl.BeginTextureMode(self.bufs[i%2]);
-        rl.ClearBackground(rl.BLACK);
-        rl.DrawTexture(
-            self.bufs[(i+1)%2].texture,
-            0, 0, rl.WHITE
-        );
-    }
-    rl.EndTextureMode();
-    self.final = (iterations-1) % 2;
-}
 pub fn getLast(self: Self) rl.Texture2D {
-    const tex = self.bufs[self.final].texture;
-    rl.SetTextureFilter(tex, @intFromEnum(rl.TextureFilter.TEXTURE_FILTER_BILINEAR));
-    return tex;
+    return self.bufs[self.last_written].texture;
 }

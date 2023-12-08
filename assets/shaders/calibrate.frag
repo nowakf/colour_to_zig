@@ -30,10 +30,10 @@ float characterize(vec3 col) {
 }
 void main() {
 	vec4 col = texture(texture0, fragTexCoord);
-	float char = characterize(col.rgb);
-	if (char < 0.0 || rgb2value(col.rgb) < brightness_margin_width) {
+	float character = characterize(col.rgb);
+	if (character < 0.0 || rgb2value(col.rgb) < brightness_margin_width) {
 		finalColor = col;
 	} else {
-		finalColor = vec4(vec3(char), 1.0);
+		finalColor = vec4(vec3(character), 1.0);
 	}
 }
