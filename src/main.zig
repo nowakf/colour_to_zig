@@ -40,10 +40,11 @@ pub fn main() !void {
     var rand = prng.random();
     //raylib.SetTraceLogLevel(4);
     raylib.SetConfigFlags(.{
-        .FLAG_WINDOW_RESIZABLE = true,
+        .FLAG_FULLSCREEN_MODE = true,
     });
-    raylib.InitWindow(800, 400, "window");
+    raylib.InitWindow(1280, 720, "window");
     defer raylib.CloseWindow();
+
     raylib.SetTargetFPS(60);
     const camera = try Cam.Camera(allocator, .{
         .name = "HD USB Camera: HD USB Camera",
@@ -55,7 +56,7 @@ pub fn main() !void {
     const calibration = try calibrate(allocator, camera);
 
     defer calibration.deinit();
-    
+
     //no samples needed now
     var segger = try segmentation.new(calibration.crop, 5, .{
         //.colours_of_interest = calibration.samples,
@@ -68,7 +69,7 @@ pub fn main() !void {
 
     var display = Display.new();
 
-    var debug_info = DebugInfo {
+    var debug_info = DebugInfo{
         .audio_processor = &audio_processor,
         .segmenter = &segger,
     };
