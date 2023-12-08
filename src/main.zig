@@ -64,7 +64,7 @@ pub fn main() !void {
 
     var audio_processor = try AudioProcessor.init(allocator, &rand, &camera);
     audio_processor.play();
-    audio_processor.deinit(allocator);
+    defer audio_processor.deinit(allocator);
 
     var display = Display.new();
     while (!raylib.WindowShouldClose()) {
