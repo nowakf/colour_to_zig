@@ -49,23 +49,22 @@ pub fn main() !void {
     const camera = try Cam.Camera(allocator, .{
         .name = "HD USB Camera: HD USB Camera",
         .fourcc = Cam.fourcc("MJPG"),
-        .dimensions = .{1280, 720, 60},
-        .props = &.{} 
+        .dimensions = .{ 1280, 720, 60 },
+        .props = &.{},
     });
     defer camera.deinit();
     const calibration = try calibrate(allocator, camera);
 
     defer calibration.deinit();
 
-    var segger = try segmentation.new(
-        calibration.crop, 5, 
-        .{ .colours_of_interest = calibration.samples }
-    );
+    var segger = try segmentation.new(calibration.crop, 5, .{
+        .colours_of_interest = calibration.samples,
+    });
     defer segger.deinit();
 
     var audio_processor = try AudioProcessor.init(allocator, &rand, &camera);
     audio_processor.play();
-    // TODO: Deinit audio processor!
+    audio_processor.deinit(allocator);
 
     var display = Display.new();
     while (!raylib.WindowShouldClose()) {
@@ -73,10 +72,10 @@ pub fn main() !void {
         display.update();
         const segmented = try segger.process();
         raylib.BeginDrawing();
-            raylib.ClearBackground(raylib.BLACK);
-//            audio_processor.update();
-            display.draw(segmented);
-            raylib.DrawFPS(10,10);
+        raylib.ClearBackground(raylib.BLACK);
+        audio_processor.update();
+        display.draw(segmented);
+        raylib.DrawFPS(10, 10);
         raylib.EndDrawing();
     }
 }

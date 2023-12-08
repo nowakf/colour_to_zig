@@ -22,14 +22,14 @@ pub const Schroeder = struct {
         };
     }
 
-    pub fn deinit(self: *Schroeder, allocator: Allocator) !void {
-        allocator.free(self.c_a);
-        allocator.free(self.c_b);
-        allocator.free(self.c_c);
-        allocator.free(self.c_d);
-        allocator.free(self.ap_a);
-        allocator.free(self.ap_b);
-        allocator.free(self.ap_c);
+    pub fn deinit(self: *Schroeder, allocator: Allocator) void {
+        self.c_a.deinit(allocator);
+        self.c_b.deinit(allocator);
+        self.c_c.deinit(allocator);
+        self.c_d.deinit(allocator);
+        self.ap_a.deinit(allocator);
+        self.ap_b.deinit(allocator);
+        self.ap_c.deinit(allocator);
     }
 
     pub fn sample(self: *Schroeder, in: f32) f32 {
@@ -67,7 +67,7 @@ pub const Comb = struct {
         };
     }
 
-    pub fn deinit(self: *Comb, allocator: Allocator) !void {
+    pub fn deinit(self: *Comb, allocator: Allocator) void {
         allocator.free(self.buf);
     }
 
@@ -100,7 +100,7 @@ pub const Allpass = struct {
         };
     }
 
-    pub fn deinit(self: *Allpass, allocator: Allocator) !void {
+    pub fn deinit(self: *Allpass, allocator: Allocator) void {
         allocator.free(self.buf);
     }
 

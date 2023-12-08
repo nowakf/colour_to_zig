@@ -75,8 +75,8 @@ pub const AudioProcessor = struct {
         return audio_processor;
     }
 
-    pub fn deinit(self: *AudioProcessor, allocator: Allocator) !void {
-        try schroeder.deinit(allocator);
+    pub fn deinit(self: *AudioProcessor, allocator: Allocator) void {
+        schroeder.deinit(allocator);
 
         raylib.UnloadAudioStream(self.audio_stream);
         raylib.CloseAudioDevice();
