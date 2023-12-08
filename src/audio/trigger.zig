@@ -1,5 +1,7 @@
 const std = @import("std");
 
+const raylib = @import("raylib");
+
 const Camera = @import("../camera.zig");
 
 const conf = @import("../config.zig");
@@ -10,6 +12,8 @@ pub const CameraTrigger = struct {
     w: usize,
     h: usize,
     last_diff: f32 = 0.0,
+    tracking_inc: f32 = conf.TRIG_TRACKING_INC,
+    tracking_dec: f32 = conf.TRIG_TRACKING_DEC,
     activity: f32 = 0.0,
 
     pub fn init(img: []u8, w: usize, h: usize, threshold: f32) CameraTrigger {
@@ -22,13 +26,41 @@ pub const CameraTrigger = struct {
     }
 
     pub fn poll(self: *CameraTrigger) bool {
-        self.activity = @max(self.activity - conf.TRIG_TRACKING_DECAY, 0.0);
+        self.processKeys();
+
+        self.activity = @max(self.activity - self.tracking_dec, 0.0);
 
         if (self.getDiff() > self.threshold) {
-            self.activity = @min(self.activity + conf.TRIG_TRACKING_ATTACK, 1.0);
+            self.activity = @min(self.activity + self.tracking_inc, 1.0);
             return true;
         } else {
             return false;
+        }
+    }
+
+    fn processKeys(self: *CameraTrigger) void {
+        if (raylib.IsKeyPressed(conf.KEY_AUDIO_TRIG_THRESH_DEC) and self.threshold > 10) {
+            self.threshold -= 10;
+        }
+
+        if (raylib.IsKeyPressed(conf.KEY_AUDIO_TRIG_THRESH_INC)) {
+            self.threshold += 10;
+        }
+
+        if (raylib.IsKeyPressed(conf.KEY_TRACKING_INC_DEC) and self.tracking_inc > 0.005) {
+            self.tracking_inc -= 0.005;
+        }
+
+        if (raylib.IsKeyPressed(conf.KEY_TRACKING_INC_INC)) {
+            self.tracking_inc += 0.005;
+        }
+
+        if (raylib.IsKeyPressed(conf.KEY_TRACKING_DEC_DEC) and self.tracking_dec > 0.001) {
+            self.tracking_dec -= 0.001;
+        }
+
+        if (raylib.IsKeyPressed(conf.KEY_TRACKING_INC)) {
+            self.tracking_dec += 0.001;
         }
     }
 

@@ -9,6 +9,7 @@ const img = @import("img.zig");
 const moore = @import("moore.zig");
 const segmentation = @import("segmentation.zig");
 const calibrator = @import("calibrate.zig");
+const DebugInfo = @import("debug.zig").DebugInfo;
 const Display = @import("display.zig");
 
 const raylib = @import("raylib");
@@ -67,6 +68,9 @@ pub fn main() !void {
     defer audio_processor.deinit(allocator);
 
     var display = Display.new();
+
+    var debug_info = DebugInfo.init(&audio_processor);
+
     while (!raylib.WindowShouldClose()) {
         const activity = audio_processor.update();
         _ = activity;
@@ -74,10 +78,14 @@ pub fn main() !void {
         try camera.updateFrame();
         display.update();
         const segmented = try segger.process();
+
         raylib.BeginDrawing();
+
         raylib.ClearBackground(raylib.BLACK);
         display.draw(segmented);
-        raylib.DrawFPS(10, 10);
+
+        try debug_info.draw(allocator);
+
         raylib.EndDrawing();
     }
 }

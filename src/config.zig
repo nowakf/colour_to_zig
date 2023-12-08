@@ -9,8 +9,22 @@ pub const KEY_CALIB_DONE = KeyboardKey.KEY_ENTER;
 pub const KEY_CALIB_DELETE = KeyboardKey.KEY_BACKSPACE;
 
 // AUDIO
+
+// Decrease/increase threshold for sound triggers
 pub const KEY_AUDIO_TRIG_THRESH_DEC = KeyboardKey.KEY_Q;
 pub const KEY_AUDIO_TRIG_THRESH_INC = KeyboardKey.KEY_W;
+
+// Adjust how fast activity tracking increases/decreases
+pub const KEY_TRACKING_INC_DEC = KeyboardKey.KEY_A;
+pub const KEY_TRACKING_INC_INC = KeyboardKey.KEY_S;
+pub const KEY_TRACKING_DEC_DEC = KeyboardKey.KEY_D;
+pub const KEY_TRACKING_INC = KeyboardKey.KEY_F;
+
+// **** GRAPHICS ****
+
+pub const DEBUG_COLOR = raylib.GREEN;
+pub const DEBUG_FONT_SIZE = 25;
+pub const DEBUG_GAP = 50;
 
 // **** AUDIO ****
 
@@ -20,8 +34,8 @@ pub const SR = 44100;
 // TRIGGER
 pub const TRIG_THRESHOLD = 100;
 
-pub const TRIG_TRACKING_ATTACK = 0.1;
-pub const TRIG_TRACKING_DECAY = 0.01;
+pub const TRIG_TRACKING_INC = 0.05;
+pub const TRIG_TRACKING_DEC = 0.01;
 
 // SYNTH
 pub const N_VOICES = 16;
