@@ -20,6 +20,9 @@ pub const SR = 44100;
 // TRIGGER
 pub const TRIG_THRESHOLD = 100;
 
+pub const TRIG_TRACKING_ATTACK = 0.1;
+pub const TRIG_TRACKING_DECAY = 0.01;
+
 // SYNTH
 pub const N_VOICES = 16;
 pub const N_PARTIALS = 8;

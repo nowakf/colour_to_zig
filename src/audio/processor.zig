@@ -86,7 +86,7 @@ pub const AudioProcessor = struct {
         raylib.PlayAudioStream(self.audio_stream);
     }
 
-    pub fn update(self: *AudioProcessor) void {
+    pub fn update(self: *AudioProcessor) f32 {
         if (raylib.IsKeyPressed(conf.KEY_AUDIO_TRIG_THRESH_DEC)) {
             self.trigger.threshold -= 10;
             std.debug.print("Trigger threshold: {d}\n", .{self.trigger.threshold});
@@ -100,6 +100,8 @@ pub const AudioProcessor = struct {
         if (self.trigger.poll()) {
             synth.trig();
         }
+
+        return self.trigger.activity;
     }
 
     fn audio_stream_callback(buffer_data: ?*anyopaque, frames: u32) void {

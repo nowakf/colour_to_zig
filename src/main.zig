@@ -68,12 +68,14 @@ pub fn main() !void {
 
     var display = Display.new();
     while (!raylib.WindowShouldClose()) {
+        const activity = audio_processor.update();
+        _ = activity;
+
         try camera.updateFrame();
         display.update();
         const segmented = try segger.process();
         raylib.BeginDrawing();
         raylib.ClearBackground(raylib.BLACK);
-        audio_processor.update();
         display.draw(segmented);
         raylib.DrawFPS(10, 10);
         raylib.EndDrawing();

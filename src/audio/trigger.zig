@@ -2,12 +2,15 @@ const std = @import("std");
 
 const Camera = @import("../camera.zig");
 
+const conf = @import("../config.zig");
+
 pub const CameraTrigger = struct {
     img: []u8,
     threshold: f32,
     w: usize,
     h: usize,
     last_diff: f32 = 0.0,
+    activity: f32 = 0.0,
 
     pub fn init(img: []u8, w: usize, h: usize, threshold: f32) CameraTrigger {
         return .{
@@ -19,7 +22,10 @@ pub const CameraTrigger = struct {
     }
 
     pub fn poll(self: *CameraTrigger) bool {
+        self.activity = @max(self.activity - conf.TRIG_TRACKING_DECAY, 0.0);
+
         if (self.getDiff() > self.threshold) {
+            self.activity = @min(self.activity + conf.TRIG_TRACKING_ATTACK, 1.0);
             return true;
         } else {
             return false;
