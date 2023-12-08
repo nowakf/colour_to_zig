@@ -14,7 +14,7 @@ const Display = @import("display.zig");
 const raylib = @import("raylib");
 
 pub const std_options = struct {
-    pub const log_level = .info;
+    pub const log_level = .err;
 };
 
 pub fn calibrate(alc: std.mem.Allocator, camera: Cam) !calibrator.Calibration {
@@ -71,11 +71,13 @@ pub fn main() !void {
     while (!raylib.WindowShouldClose()) {
         try camera.updateFrame();
         display.update();
-        const segmented = try segger.process();
+        segger.update();
+        const seg = try segger.process();
         raylib.BeginDrawing();
             raylib.ClearBackground(raylib.BLACK);
-            audio_processor.update();
-            display.draw(segmented);
+            //audio_processor.update();
+            
+            display.draw(seg);
             raylib.DrawFPS(10,10);
         raylib.EndDrawing();
     }

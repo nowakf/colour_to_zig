@@ -1,6 +1,6 @@
 const std = @import("std");
 
-const raylib = @import("raylib");
+const rl = @import("raylib");
 
 const Cam = @import("camera.zig");
 const Texture3D = @import("texture3d.zig");
@@ -11,12 +11,12 @@ const Shader = @import("shader.zig");
 const Self = @This();
 
 head: u32 = 0,
-dummy: raylib.Texture2D,
 seg_shader: Shader,
-err_shader: Shader,
 crop_buf: CropBuf,
-swap_buf: SwapBuf,
+frame: rl.Texture2D,
+state: SwapBuf,
 params: SegmentationParams,
+
 
 pub fn new(image: CropBuf, depth: u32, opts: SegmentationParams) !Self {
     _ = depth;
@@ -24,35 +24,36 @@ pub fn new(image: CropBuf, depth: u32, opts: SegmentationParams) !Self {
         "assets/shaders/vertex.vert",
         "assets/shaders/segmentation.frag",
     );
-    const err_shader = Shader.fromPaths(
-        "assets/shaders/vertex.vert",
-        "assets/shaders/errode.frag",
-    );
+
+    seg_shader.send(SegmentationParams, opts, null) catch |err| {
+        std.log.err("{any}\n", .{err});
+    };
+
+    std.debug.print("{any}", .{opts});
 
     const swap_buf = .{
         .bufs = .{
-            raylib.LoadRenderTexture(@intCast(image.dst_rect.w), @intCast(image.dst_rect.h)),
-            raylib.LoadRenderTexture(@intCast(image.dst_rect.w), @intCast(image.dst_rect.h)),
+            rl.LoadRenderTexture(@intCast(image.dst_rect.w), @intCast(image.dst_rect.h)),
+            rl.LoadRenderTexture(@intCast(image.dst_rect.w), @intCast(image.dst_rect.h)),
         },
     };
 
-    seg_shader.send(SegmentationParams, opts, null) catch |err| {
-        std.log.err("{any}", .{err});
-    };
-
-    return .{
-        .seg_shader = seg_shader,
-        .err_shader = err_shader,
-        .dummy = raylib.LoadTextureFromImage(.{
+    const frame = rl.LoadTextureFromImage(.{
             .data = image.buf.ptr,
             .width = @intCast(image.dst_rect.w),
             .height = @intCast(image.dst_rect.h),
             .mipmaps = 1,
-            .format = @intFromEnum(raylib.PixelFormat.PIXELFORMAT_UNCOMPRESSED_R8G8B8),
-            }),
+            .format = @intFromEnum(rl.PixelFormat.PIXELFORMAT_UNCOMPRESSED_R8G8B8),
+    });
+
+    rl.SetTextureFilter(frame, @intFromEnum(rl.TextureFilter.TEXTURE_FILTER_BILINEAR));
+
+    return .{
+        .seg_shader = seg_shader,
+        .state = swap_buf,
+        .frame = frame,
         .params = opts,
         .crop_buf = image,
-        .swap_buf = swap_buf,
     };
 }
 
@@ -70,43 +71,54 @@ const SegmentationParams = struct {
 
 pub fn update_settings(self: *Self, params: SegmentationParams) !void {
     self.params = params;
-    try self.seg_shader.send(self.params);
+    //try self.seg_shader.send(self.params);
 }
 
-pub fn process(self: *Self) !raylib.Texture2D {
+pub fn update(self: *Self) void {
+    if (rl.IsKeyReleased(rl.KeyboardKey.KEY_ENTER)) {
+        rl.UnloadShader(self.seg_shader.inner);
+        self.seg_shader = Shader.fromPaths("assets/shaders/vertex.vert", "assets/shaders/segmentation.frag");
+    }
+}
+
+pub fn process(self: *Self) !rl.Texture2D {
     self.crop_buf.update();
 
-    //try self.seg_shader.send(u32, self.head, "head");
-
-    self.segment();
-
-    self.errode();
-
-    //self.head = (self.head + 1) % @as(u32, @intCast(self.texture.depth));
-
-    return self.swap_buf.getLast();
-
-}
-
-fn segment(self: *Self) void {
+    rl.UpdateTexture(self.frame, self.crop_buf.buf.ptr);
+   
     self.seg_shader.begin();
-    raylib.UpdateTexture(self.dummy, self.crop_buf.buf.ptr);
-    self.seg_shader.sendTexture("texture0", self.dummy) catch |err| {
-        std.log.err("{any}\n", .{err});
+    rl.BeginTextureMode(self.state.bufs[self.state.last_written]);
+    self.state.last_written = (self.state.last_written + 1) % 2;
+
+    self.seg_shader.sendTexture("camera_frame", self.frame) catch |err| {
+        std.log.info("{any}\n", .{err});
     };
-    self.swap_buf.setInitial(self.dummy);
+
+    self.seg_shader.sendTexture("state", self.state.bufs[self.state.last_written].texture) catch |err| {
+        std.log.info("{any}\n", .{err});
+    };
+
+    rl.DrawTexturePro(self.frame,
+        .{.x=0, .y=0, .width=@floatFromInt(self.frame.width), .height=@floatFromInt(self.frame.height)},
+        .{.x=0, .y=0, .width=@floatFromInt(self.frame.width), .height=@floatFromInt(self.frame.height)},
+        .{},
+        0,
+        rl.WHITE
+        );
+
+
+    rl.EndTextureMode();
+
     self.seg_shader.end();
+
+    return self.state.getLast();
+
 }
 
-fn errode(self: *Self) void {
-    self.err_shader.begin();
-        self.swap_buf.run(3);
-    self.err_shader.end();
-}
 
 pub fn debugDraw(self: *Self) !void {
     const e = try self.process();
-    raylib.DrawTexturePro(
+    rl.DrawTexturePro(
         e,
         .{
             .x=0,
@@ -117,12 +129,12 @@ pub fn debugDraw(self: *Self) !void {
         .{
             .x=0,
             .y=0,
-            .width=@floatFromInt(raylib.GetScreenWidth()),
-            .height=@floatFromInt(raylib.GetScreenHeight()),
+            .width=@floatFromInt(rl.GetScreenWidth()),
+            .height=@floatFromInt(rl.GetScreenHeight()),
         },
         .{.x=0,.y=0},
         0,
-        raylib.WHITE,
+        rl.WHITE,
     );
 }
 
