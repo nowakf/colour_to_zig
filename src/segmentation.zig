@@ -3,7 +3,6 @@ const std = @import("std");
 const rl = @import("raylib");
 
 const Cam = @import("camera.zig");
-const Texture3D = @import("texture3d.zig");
 const SwapBuf = @import("swap_buf.zig");
 const CropBuf = @import("crop_buf.zig");
 const Shader = @import("shader.zig");
