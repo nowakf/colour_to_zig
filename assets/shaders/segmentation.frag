@@ -8,6 +8,7 @@ const int GAUSS_SAMPLES = 16;
 const float SCALE = 5.;
 uniform sampler2D camera_frame;
 uniform sampler2D state;
+uniform float delta_weight = 0.1;
 
 out vec4 finalColor;
 
@@ -33,7 +34,7 @@ vec4 golden_gaussian(sampler2D tex, vec2 center) {
 vec4 update(in vec2 uv) {
 	vec4 init = texture(state, fragTexCoord * vec2(1, -1)); //stupid raylib
 	vec4 add = golden_gaussian(camera_frame, fragTexCoord);
-	return mix(init, add, vec4(distance(init, add) / 3. + 0.01));
+	return mix(init, add, vec4(distance(init, add) / 3. + delta_weight));
 }
 
 void main() {

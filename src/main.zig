@@ -12,9 +12,9 @@ const Display = @import("display.zig");
 
 const raylib = @import("raylib");
 
-pub const std_options = struct {
-    pub const log_level = .err;
-};
+//pub const std_options = struct {
+//    pub const log_level = .err;
+//};
 
 pub fn calibrate(alc: std.mem.Allocator, camera: Cam) !calibrator.Calibration {
     var calib = try calibrator.new(alc, camera);
@@ -48,16 +48,17 @@ pub fn main() !void {
     const camera = try Cam.Camera(allocator, .{
         .name = "HD USB Camera: HD USB Camera",
         .fourcc = Cam.fourcc("MJPG"),
-        .dimensions = .{ 1280, 720, 60 },
+        .dimensions = .{ 1280, 720, 30 },
         .props = &.{},
     });
     defer camera.deinit();
     const calibration = try calibrate(allocator, camera);
 
     defer calibration.deinit();
-
+    
+    //no samples needed now
     var segger = try segmentation.new(calibration.crop, 5, .{
-        .colours_of_interest = calibration.samples,
+        //.colours_of_interest = calibration.samples,
     });
     defer segger.deinit();
 
@@ -67,20 +68,26 @@ pub fn main() !void {
 
     var display = Display.new();
 
-    var debug_info = DebugInfo.init(&audio_processor);
+    var debug_info = DebugInfo {
+        .audio_processor = &audio_processor,
+        .segmenter = &segger,
+    };
 
     while (!raylib.WindowShouldClose()) {
         const activity = audio_processor.update();
-        _ = activity;
 
         try camera.updateFrame();
-        display.update();
+
+        segger.update();
+
         const segmented = try segger.process();
 
         raylib.BeginDrawing();
 
         raylib.ClearBackground(raylib.BLACK);
-        display.draw(segmented);
+
+        display.update();
+        display.draw(segmented, activity);
 
         try debug_info.draw(allocator);
 

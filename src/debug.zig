@@ -2,6 +2,7 @@ const std = @import("std");
 const fmt = std.fmt;
 
 const AudioProcessor = @import("audio/processor.zig").AudioProcessor;
+const Segmenter = @import("segmentation.zig");
 
 const raylib = @import("raylib");
 
@@ -10,12 +11,7 @@ const conf = @import("config.zig");
 pub const DebugInfo = struct {
     show: bool = false,
     audio_processor: *AudioProcessor,
-
-    pub fn init(audio_processor: *AudioProcessor) DebugInfo {
-        return .{
-            .audio_processor = audio_processor,
-        };
-    }
+    segmenter: *const Segmenter,
 
     pub fn draw(self: *DebugInfo, allocator: std.mem.Allocator) !void {
         if (raylib.IsKeyPressed(raylib.KeyboardKey.KEY_F1)) {
@@ -84,6 +80,7 @@ pub const DebugInfo = struct {
             conf.DEBUG_COLOR,
         );
 
+
         raylib.DrawRectangleLines(
             conf.DEBUG_GAP,
             conf.DEBUG_GAP * 5,
@@ -95,6 +92,19 @@ pub const DebugInfo = struct {
             conf.DEBUG_GAP,
             conf.DEBUG_GAP * 5,
             @intFromFloat(self.audio_processor.trigger.activity * 200.0),
+            conf.DEBUG_FONT_SIZE,
+            conf.DEBUG_COLOR,
+        );
+        const delta_weight = try std.fmt.allocPrintZ(
+            allocator,
+            "New frame influence: {d:.3}",
+            .{self.segmenter.delta_weight}
+        );
+        defer allocator.free(delta_weight);
+        raylib.DrawText(
+            delta_weight,
+            conf.DEBUG_GAP,
+            conf.DEBUG_GAP * 6,
             conf.DEBUG_FONT_SIZE,
             conf.DEBUG_COLOR,
         );

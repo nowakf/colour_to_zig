@@ -5,11 +5,12 @@ const rl = @import("raylib");
 const Cam = @import("camera.zig");
 const SwapBuf = @import("swap_buf.zig");
 const CropBuf = @import("crop_buf.zig");
+const Config = @import("config.zig");
 const Shader = @import("shader.zig");
 
 const Self = @This();
 
-head: u32 = 0,
+delta_weight: f32 = 0.1,
 seg_shader: Shader,
 crop_buf: CropBuf,
 frame: rl.Texture2D,
@@ -59,13 +60,6 @@ pub fn new(image: CropBuf, depth: u32, opts: SegmentationParams) !Self {
 //this should be kept in sync with the uniforms in 
 //assets/shaders/segmentation.glsl
 const SegmentationParams = struct {
-    colour_cone_width: f32 = 0.10,
-    brightness_margin_width: f32 = 0.1,
-    //this should be a vector
-    //and the shader should have a 'vec_len' uniform.
-    colours_of_interest: []const [3]f32 = &.{
-        .{1, 0, 0},
-    }
 };
 
 pub fn update_settings(self: *Self, params: SegmentationParams) !void {
@@ -77,7 +71,14 @@ pub fn update(self: *Self) void {
     if (rl.IsKeyReleased(rl.KeyboardKey.KEY_ENTER)) {
         rl.UnloadShader(self.seg_shader.inner);
         self.seg_shader = Shader.fromPaths("assets/shaders/vertex.vert", "assets/shaders/segmentation.frag");
+    } else if (rl.IsKeyReleased(Config.KEY_DELTA_WEIGHT_INC)) {
+        self.delta_weight += 0.01;
+    } else if (rl.IsKeyReleased(Config.KEY_DELTA_WEIGHT_DEC)) {
+        self.delta_weight -= 0.01;
     }
+    self.seg_shader.send(f32, self.delta_weight, "delta_weight") catch |err| {
+            std.log.info("{any}\n", .{err});
+    };
 }
 
 pub fn process(self: *Self) !rl.Texture2D {

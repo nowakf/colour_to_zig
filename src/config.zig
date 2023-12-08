@@ -8,6 +8,10 @@ pub const KEY_CALIB_RESET = KeyboardKey.KEY_SPACE;
 pub const KEY_CALIB_DONE = KeyboardKey.KEY_ENTER;
 pub const KEY_CALIB_DELETE = KeyboardKey.KEY_BACKSPACE;
 
+// CAMERA
+pub const KEY_DELTA_WEIGHT_DEC = KeyboardKey.KEY_J;
+pub const KEY_DELTA_WEIGHT_INC = KeyboardKey.KEY_K;
+
 // AUDIO
 
 // Decrease/increase threshold for sound triggers

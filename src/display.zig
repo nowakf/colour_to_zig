@@ -40,9 +40,10 @@ pub fn update(self: *Self) void {
     }
 }
 
-pub fn draw(self: Self, tex: rl.Texture2D) void {
+pub fn draw(self: Self, tex: rl.Texture2D, activity: f32) void {
     const w : f32 = @floatFromInt(rl.GetScreenWidth());
     const h : f32 = @floatFromInt(rl.GetScreenHeight());
+    self.sdf_shader.send(f32, activity, "activity") catch |err| std.log.info("{any}\n", .{err});
     self.sdf_shader.send(f32, w/h, "aspect") catch |err| std.log.info("{any}\n", .{err});
     self.sdf_shader.send(f32, @floatCast(rl.GetTime()), "time")  catch |err| std.log.info("{any}\n", .{err});
     self.sdf_shader.begin();

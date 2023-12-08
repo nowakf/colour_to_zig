@@ -7,6 +7,7 @@ uniform sampler2D surface;
 uniform sampler2D depths;
 uniform float aspect;
 uniform float time;
+uniform float activity;
 
 out vec4 finalColor;
 const int BOUNCES = 5;
@@ -86,7 +87,7 @@ vec3 albedo(vec3 pos) {
 		texture(depths, uv).rgb * vec3(1.0, 1.0, 0.8),
 		texture(surface, uv+time*noise(pos.xy*0.01).xy*0.1*scale).rgb * vec3(0.05, 0.05, 0.4),
 		z
-	), vec3(0.8,0.8,0.), smoothness(pos)*0.1);
+	), vec3(0.8,0.8,0.), smoothness(pos)*activity);
 }
 
 vec3 sky(vec3 dir) {
